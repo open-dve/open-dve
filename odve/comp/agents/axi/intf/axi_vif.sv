@@ -5,6 +5,7 @@ interface axi_if #(
   parameter int unsigned USER_W = 0
 );
 
+
   localparam int unsigned STRB_W = AXI_DATA_WIDTH / 8;
 
   typedef logic [ID_WIDTH-1:0]   ID_T;
