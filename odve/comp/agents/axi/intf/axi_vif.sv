@@ -66,3 +66,5 @@ interface axi_if #(
   logic             r_ready;
 
 endinterface
+
+//example
