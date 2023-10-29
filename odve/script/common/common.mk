@@ -9,7 +9,9 @@ DEF_OPTS=
 RUN_OPTS+=
 
 ###COMPILE options
-FILELIST_TB=
+ifndef FILELIST_TB 
+FILELIST_TB=$(VRF)/list/list.f
+endif
 
 FILELIST_DUT=
 
@@ -46,17 +48,19 @@ VSIM=vsim
 
 
 
-clean :     
+clean : 
+	rm -rf ./modelsim.ini
+	rm -rf ./work
 	rm -rf $(COMP_DIR)
 
 prep : 
 	mkdir $(COMP_DIR) 
-	vlib work 
-	vmap work work
+	vlib $(COMP_DIR) 
+	vmap work $(COMP_DIR)
 
 
-atb : 
-	vlog -reportprogress 300 -work work -sv -covercells -cover sbcefx3 -f  
+atb : prep
+	vlog -reportprogress 300 -work work -sv -covercells -cover sbcefx3 -f $(FILELIST_TB)
 
 all : prep atb 
 

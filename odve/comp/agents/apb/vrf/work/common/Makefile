@@ -4,6 +4,8 @@ DEF=
 
 RUN_OPTS+=
 
+FILELIST_TB=$(ODVE)/comp/agents/apb/list/agent.f
+
 COMP_OPTS+=
 
 COV_OPTS+=
