@@ -1,5 +1,4 @@
-
-.PHONY clean all run auvm atb adut elab gcov
+.PHONY: clean all run auvm atb adut elab gcov
 
 PROJ=`pwd`
 
@@ -10,7 +9,11 @@ DEF_OPTS=
 RUN_OPTS+=
 
 ###COMPILE options
-COMP_DIR=
+FILELIST_TB=
+
+FILELIST_DUT=
+
+COMP_DIR=build
 
 COMP_OPTS+=
 
@@ -46,8 +49,16 @@ VSIM=vsim
 clean :     
 	rm -rf $(COMP_DIR)
 
+prep : 
+	mkdir $(COMP_DIR) 
+	vlib work 
+	vmap work work
 
-all : auvm adut atb elab
+
+atb : 
+	vlog -reportprogress 300 -work work -sv -covercells -cover sbcefx3 -f  
+
+all : prep atb 
 
 
 run : 

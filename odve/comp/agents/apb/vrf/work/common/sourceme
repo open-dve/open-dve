@@ -1,4 +1,5 @@
 #!/bin/bash 
-export ODVE="../../../../../../"
-export PROJ="../../../../../../comp/agents/apb"
+
+export ODVE="./../../../../../../"
+export PROJ="./../../../../../../comp/agents/apb"
 source $ODVE/script/source/common_sourceme
