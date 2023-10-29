@@ -2,9 +2,9 @@ PROJ=`pwd`
 
 DEF=
 
-RUN_OPTS+=
+RUN_OPTS+=-batch
 
-FILELIST_TB=$(ODVE)/comp/agents/apb/list/agent.f
+FILELIST_TB=$(ODVE)/comp/agents/apb/vrf/list/filelist_tb.f
 
 COMP_OPTS+=
 

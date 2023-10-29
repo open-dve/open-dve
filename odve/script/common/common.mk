@@ -19,6 +19,10 @@ COMP_DIR=build
 
 COMP_OPTS+=
 
+ifndef TOP
+TOP=top
+endif 
+
 
 ###COVERAGE options
 COV_OPTS+=
@@ -66,7 +70,7 @@ all : prep atb
 
 
 run : 
-	vsim $(COMP_DIR).apb_if
+	vsim $(COMP_DIR).$(TOP) $(RUN_OPTS)
 
  
 
