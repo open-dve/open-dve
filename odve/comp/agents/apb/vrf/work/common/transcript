@@ -1,0 +1,8 @@
+# vsim build.apb_if 
+# Start time: 17:14:18 on Oct 29,2023
+# ** Fatal: (vsim-3370) Design unit 'apb_if' (INTERFACE) is not allowed at the top level.
+#    Time: 0 ps  Iteration: 0  Root: / File: NOFILE
+# FATAL ERROR while loading design
+# Error loading design
+# End time: 17:14:18 on Oct 29,2023, Elapsed time: 0:00:00
+# Errors: 1, Warnings: 0

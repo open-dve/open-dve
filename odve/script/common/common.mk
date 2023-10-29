@@ -66,7 +66,7 @@ all : prep atb
 
 
 run : 
-	vsim $(COMP_DIR)/opt1 -sverilog 
+	vsim $(COMP_DIR).apb_if
 
  
 
