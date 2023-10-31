@@ -3,16 +3,32 @@ from ortools.sat.python import cp_model
 # Create a CP model
 model = cp_model.CpModel()
 
-# Define your tasks, workers, and constraints
-# You need to add your specific constraints and variables here.
+# Define the time range (adjust as needed)
+time_range = 48  # Specify the time range in hours
 
-# Example: Defining a task with a start time and duration
-task1_start = model.NewIntVar(0, 24, 'task1_start')  # Task 1 start time between 0 and 24 hours
-task1_duration = 2  # Task 1 has a duration of 2 hours
-task1_end = model.NewIntVar(0, 24, 'task1_end')  # Task 1 end time
+# Define the tasks with different durations and the range of workers
+tasks = []
+task_durations = [2, 3, 1, 4, 2, 2, 3, 1, 4, 3]  # Example durations for 10 tasks
+min_workers = 3  # Minimum number of workers for a task
+max_workers = 10  # Maximum number of workers for a task
 
-# Example: Ensure that Task 1 starts and ends correctly
-model.Add(task1_start + task1_duration == task1_end)
+# Define the tasks and add constraints
+for i, duration in enumerate(task_durations):
+    start_var = model.NewIntVar(0, time_range, f'task_{i}_start')  # Adjusted time range
+    end_var = model.NewIntVar(0, time_range, f'task_{i}_end')  # Adjusted time range
+    workers_var = model.NewIntVar(min_workers, max_workers, f'task_{i}_workers')  # Number of workers variable
+    tasks.append((start_var, end_var, workers_var))
+
+    # Add constraint: task end time is task start time + duration
+    model.Add(end_var == start_var + duration)
+
+# Add constraint: Tasks do not overlap unless running in parallel
+for i in range(len(tasks)):
+    for j in range(i + 1, len(tasks)):
+        overlap_var = model.NewBoolVar(f'overlap_{i}_{j}')
+        model.Add(overlap_var == model.NewBoolVar(f'bool_overlap_{i}_{j}'))
+        model.Add(tasks[i][1] <= tasks[j][0] + time_range * (1 - overlap_var))
+        model.Add(tasks[j][1] <= tasks[i][0] + time_range * (1 - overlap_var))
 
 # Define the solver
 solver = cp_model.CpSolver()
@@ -21,10 +37,8 @@ solver = cp_model.CpSolver()
 status = solver.Solve(model)
 
 if status == cp_model.OPTIMAL:
-    # Extract and print the solution
-    for task in [task1_start, task1_end]:  # Replace with your task variables
-        print(f"Task {task.Name()}: Start at {solver.Value(task)} hours")
-
-    print("Optimal Schedule Found")
+    print("Optimal Schedule Found:")
+    for i, (start, end, workers) in enumerate(tasks):
+        print(f"Task {i + 1}: [{solver.Value(start)} - {solver.Value(end)}] hours, Workers: {solver.Value(workers)}")
 else:
     print("No optimal solution found.")
