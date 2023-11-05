@@ -10,7 +10,7 @@ RUN_OPTS+=
 
 ###COMPILE options
 ifndef FILELIST_TB 
-FILELIST_TB=$(VRF)/list/list.f
+	FILELIST_TB=$(VRF)/list/list.f
 endif
 
 FILELIST_DUT=
@@ -20,7 +20,7 @@ COMP_DIR=build
 COMP_OPTS+=
 
 ifndef TOP
-TOP=top
+	TOP=top
 endif 
 
 
@@ -70,7 +70,7 @@ all : prep atb
 
 
 run : 
-	vsim $(COMP_DIR).$(TOP) $(RUN_OPTS)
+	vsim $(COMP_DIR).$(TOP) $(RUN_OPTS) -do "run; quit;"
 
  
 

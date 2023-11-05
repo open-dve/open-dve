@@ -11,9 +11,10 @@ class readlist:
 
         except FileNotFoundError:
             print(f"File not found: {self.file_path}")
+            exit (1)
         except Exception as e:
             print(f"An error occurred: {str(e)}")
-
+            exit (1)
     def printline(self):
         for item in self.data :
             print (item)

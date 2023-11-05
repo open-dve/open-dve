@@ -13,7 +13,7 @@ class list2json:
     def gencmd (self, data):
         cmds = []
         for run in data :
-            cmd=f'echo "make run RUN_DIR={run}"'
+            cmd=f'make run RUN_DIR={run} {data[run]["cmd"]}'
             cmds.append(cmd)
         return cmds  
     
