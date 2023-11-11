@@ -1,124 +1,73 @@
-"""Minimal jobshop example."""
-import collections
-from ortools.sat.python import cp_model
+from ortools.linear_solver import pywraplp
 
 
 def main():
-    """Minimal jobshop problem."""
-    # Data.
-    jobs_data = [  # task = (machine_id, processing_time).
-        [(0, 3), (1, 2), (2, 2)],  # Job0
-        [(0, 2), (2, 1), (1, 4)],  # Job1
-        [(1, 4), (2, 3)],  # Job2
+    # Data
+    jobs = [
+        [[10, 80],[20,40],[30,30]],
+        [[8, 85]],
+        [[22, 95]],
+        [[10, 110]],
+        [[5, 100]],
+        [[30,22]]
     ]
+    num_cpu = 100     # num lics/cpu  in parallel
+    num_min = 7*24*60 #min in the week 
+    # Solver
+    # Create the mip solver with the SCIP backend.
+    #solver = pywraplp.Solver.CreateSolver("SCIP")
+    solver = pywraplp.Solver.CreateSolver("SAT")
+    if not solver:
+        return
 
-    machines_count = 1 + max(task[0] for job in jobs_data for task in job)
-    all_machines = range(machines_count)
-    # Computes horizon dynamically as the sum of all durations.
-    horizon = sum(task[1] for job in jobs_data for task in job)
+    # Variables
+    # x[i, j] is an array of 0-1 variables, which will be 1
+    # if come Job configuration is selected.
+    # xyss [i,j] is array of pairs (0-num_cpu,0-num_min)
+    # xyee [i,j] is array of pairs (0-num_cpu,0-num_min)
+    x = {}
+    r = {}
+    xyss = {}
+    xyee = {}
+    for i in range(len(jobs)):
+        for j in range(len(jobs[i])):
+            x   [i, j]    = solver.IntVar(0, 1, "")
+            r   [i, j]    = solver.IntVar(0, 1, "")
+            xyss[i, j, 0] = solver.IntVar(0, num_cpu-1, "")
+            xyss[i, j, 1] = solver.IntVar(0, num_min-1, "")
+            xyee[i, j, 0] = solver.IntVar(1, num_cpu-1, "")
+            xyee[i, j, 1] = solver.IntVar(1, num_min-1, "")
+            print (f"{i}, {j}, {len(jobs)}")
 
-    # Create the model.
-    model = cp_model.CpModel()
+    for i in range(len(jobs)):
+        for j in range(len(jobs[i])):           
+            solver.Add(xyss[i,j,0]+jobs[i][j][0] == xyee[i,j,0]) # start cpu + num cpu = end cpu 
+            solver.Add(xyss[i,j,1]+jobs[i][j][1] == xyee[i,j,1]) # start time + end time = end time
+        for ii in range(i,len(jobs)) :
+            print (f"{i}, {ii}, {len(jobs)}")
+            solver.Add( xyss[i,j,1] >=  xyee [ii,j,1])
 
-    # Named tuple to store information about created variables.
-    task_type = collections.namedtuple("task_type", "start end interval")
-    # Named tuple to manipulate solution information.
-    assigned_task_type = collections.namedtuple(
-        "assigned_task_type", "start job index duration"
-    )
+ 
+    # Constraints
+    for i in range(len(jobs)):
+        solver.Add(solver.Sum([ x[i, j] for j in range(len(jobs[i])) ]) == 1) # only one job configuration should be 
+    
+    solver.Add( solver.Sum( [ jobs[i][j][0]*x[i,j] for i in range(len(jobs)) for j in range(len(jobs[i])) ]) <= num_cpu ) 
+    solver.Add( solver.Sum( [ jobs[i][j][1]*x[i,j] for i in range(len(jobs)) for j in range(len(jobs[i])) ]) <= num_min ) 
+        
+    # Solve
+    status = solver.Solve()
 
-    # Creates job intervals and add to the corresponding machine lists.
-    all_tasks = {}
-    machine_to_intervals = collections.defaultdict(list)
-
-    for job_id, job in enumerate(jobs_data):
-        for task_id, task in enumerate(job):
-            machine, duration = task
-            suffix = f"_{job_id}_{task_id}"
-            start_var = model.NewIntVar(0, horizon, "start" + suffix)
-            end_var = model.NewIntVar(0, horizon, "end" + suffix)
-            interval_var = model.NewIntervalVar(
-                start_var, duration, end_var, "interval" + suffix
-            )
-            all_tasks[job_id, task_id] = task_type(
-                start=start_var, end=end_var, interval=interval_var
-            )
-            machine_to_intervals[machine].append(interval_var)
-
-    # Create and add disjunctive constraints.
-    for machine in all_machines:
-        model.AddNoOverlap(machine_to_intervals[machine])
-
-    # Precedences inside a job.
-    for job_id, job in enumerate(jobs_data):
-        for task_id in range(len(job) - 1):
-            model.Add(
-                all_tasks[job_id, task_id + 1].start >= all_tasks[job_id, task_id].end
-            )
-
-    # Makespan objective.
-    obj_var = model.NewIntVar(0, horizon, "makespan")
-    model.AddMaxEquality(
-        obj_var,
-        [all_tasks[job_id, len(job) - 1].end for job_id, job in enumerate(jobs_data)],
-    )
-    model.Minimize(obj_var)
-
-    # Creates the solver and solve.
-    solver = cp_model.CpSolver()
-    status = solver.Solve(model)
-
-    if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
-        print("Solution:")
-        # Create one list of assigned tasks per machine.
-        assigned_jobs = collections.defaultdict(list)
-        for job_id, job in enumerate(jobs_data):
-            for task_id, task in enumerate(job):
-                machine = task[0]
-                assigned_jobs[machine].append(
-                    assigned_task_type(
-                        start=solver.Value(all_tasks[job_id, task_id].start),
-                        job=job_id,
-                        index=task_id,
-                        duration=task[1],
-                    )
-                )
-
-        # Create per machine output lines.
-        output = ""
-        for machine in all_machines:
-            # Sort by starting time.
-            assigned_jobs[machine].sort()
-            sol_line_tasks = "Machine " + str(machine) + ": "
-            sol_line = "           "
-
-            for assigned_task in assigned_jobs[machine]:
-                name = f"job_{assigned_task.job}_task_{assigned_task.index}"
-                # Add spaces to output to align columns.
-                sol_line_tasks += f"{name:15}"
-
-                start = assigned_task.start
-                duration = assigned_task.duration
-                sol_tmp = f"[{start},{start + duration}]"
-                # Add spaces to output to align columns.
-                sol_line += f"{sol_tmp:15}"
-
-            sol_line += "\n"
-            sol_line_tasks += "\n"
-            output += sol_line_tasks
-            output += sol_line
-
-        # Finally print the solution found.
-        print(f"Optimal Schedule Length: {solver.ObjectiveValue()}")
-        print(output)
+    # Print solution.
+    if status == pywraplp.Solver.OPTIMAL or status == pywraplp.Solver.FEASIBLE:
+        for i in range(len(jobs)):
+            for j in range(len(jobs[i])):
+                # Test if x[i,j] is 1 (with tolerance for floating point arithmetic).
+                if x[i,j].solution_value() :
+                    print(f"Job {i} Started {xyss[i,j,1].solution_value()} on {xyss[i,j,0].solution_value()} CPUs")
+                    print(f"Job {i} End     {xyee[i,j,1].solution_value()} on {xyee[i,j,0].solution_value()} CPUs")
     else:
         print("No solution found.")
-
-    # Statistics.
-    print("\nStatistics")
-    print(f"  - conflicts: {solver.NumConflicts()}")
-    print(f"  - branches : {solver.NumBranches()}")
-    print(f"  - wall time: {solver.WallTime()}s")
 
 
 if __name__ == "__main__":
