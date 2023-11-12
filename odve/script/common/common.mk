@@ -6,8 +6,8 @@ PROJ=`pwd`
 DEF_OPTS=
 
 ###RUN options
-RUN_OPTS+=
-
+RUN_OPTS +=
+MK_RUN_OPTS+=+UVM_TESTNAME=$(TESTNAME)
 ###COMPILE options
 ifndef FILELIST_TB 
 	FILELIST_TB=$(VRF)/list/tb_flist.f
@@ -86,7 +86,10 @@ predut :
 
 auvm :  
 	cd $(COMP_DIR) ;\
-	vlog -reportprogress 300 -work uvm -sv -covercells -cover sbcefx3 -f $(FILELIST_UVM)
+	vlog -reportprogress 300 -work uvm -sv -covercells -cover sbcefx3 \
+	+define+UVM_CMDLINE_NO_DPI \
+	+define+UVM_REGEX_NO_DPI \
+	-f $(FILELIST_UVM) 
 
 adut :  
 	cd $(COMP_DIR) ;\
@@ -94,13 +97,18 @@ adut :
 
 atb : 
 	cd $(COMP_DIR) ;\
-	vlog -reportprogress 300 -work tb -sv -covercells -cover sbcefx3 -f $(FILELIST_TB)
+	vlog -reportprogress 300 -work tb -sv -covercells -cover sbcefx3 -f $(FILELIST_TB) \
+	-L dut -L uvm
 
 all : preuvm auvm predut adut pretb atb 
 
 
 run : 
-	vsim $(COMP_DIR).$(TOP) $(RUN_OPTS) -do "run; quit;"
+	cd $(COMP_DIR); \
+	vsim tb.$(TOP) \
+		$(RUN_OPTS) \
+		$(MK_RUN_OPTS) \
+		-do "run; quit;"
 
  echo_%:
 	@echo '$*=$($*)'
