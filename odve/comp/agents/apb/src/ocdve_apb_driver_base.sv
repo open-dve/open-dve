@@ -1,5 +1,5 @@
-class ocdve_apb_driver_base extends ocdve_common_driver#(ocdve_apb_seq_item);
-    protected virtual ocdve_apb_if vif;
+virtual class ocdve_apb_driver_base#(parameter type VIF = virtual ocdve_apb_if)  extends ocdve_common_driver#(ocdve_apb_seq_item#(VIF));
+    protected VIF vif;
 
     function new(string name = "ocdve_apb_driver_base", uvm_component parent);
         super.new(name, parent);
@@ -8,7 +8,7 @@ class ocdve_apb_driver_base extends ocdve_common_driver#(ocdve_apb_seq_item);
     extern virtual task run_phase(uvm_phase phase);
     pure   virtual task init_signals();
     pure   virtual task get_and_drive();
-    extern function void set_cfg(ocdve_apb_agent_cfg cfg);
+    extern function void set_cfg(ocdve_apb_agent_cfg#(VIF) cfg);
 endclass : ocdve_apb_driver_base
 
 task ocdve_apb_driver_base::run_phase(puvm_phase phase);
@@ -24,6 +24,6 @@ task ocdve_apb_driver_base::run_phase(puvm_phase phase);
     end
 endtask: run_phase
 
-function void ocdve_apb_driver_base::set_cfg(ocdve_apb_agent_cfg cfg);
+function void ocdve_apb_driver_base::set_cfg(ocdve_apb_agent_cfg#(VIF) cfg);
     vif = cfg.vif;
 endfunction

@@ -1,11 +1,11 @@
 `ifndef __OCDVE_APB_IF_SV
 `define __OCDVE_APB_IF_SV
-interface ocdve_apb_if#(parameter PADDR_WIDTH = 32,
+interface ocdve_apb_if#(parameter ADDR_WIDTH = 32,
                         parameter DATA_WIDTH  = 32)
                                                    ( input logic clk    ,
                                                      input logic reset_n,
                                                      // Master's signals
-                                                     wire [PADDR_WIDTH-1:0] paddr  ,
+                                                     wire [ADDR_WIDTH-1:0] paddr  ,
                                                      wire /*[PSEL_WIDTH -1:0]*/ psel   ,
                                                      wire                   penable,
                                                      wire                   pwrite ,
@@ -14,7 +14,7 @@ interface ocdve_apb_if#(parameter PADDR_WIDTH = 32,
                                                      wire                   pready ,
                                                      wire [DATA_WIDTH -1:0] prdata ,
                                                      wire                   pslverr  );
-    logic [PADDR_WIDTH-1:0] paddr_l   = 'bz;
+    logic [ADDR_WIDTH-1:0] paddr_l   = 'bz;
     logic /*[PSEL_WIDTH -1:0]*/ psel_l    = 'bz;
     logic                   penable_l = 'bz;
     logic                   pwrite_l  = 'bz;
