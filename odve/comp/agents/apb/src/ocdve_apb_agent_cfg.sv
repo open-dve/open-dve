@@ -1,7 +1,7 @@
-class ocdve_apb_agent_cfg extends uvm_object;
+class ocdve_apb_agent_cfg#(parameter type VIF = virtual ocdve_apb_if)  extends uvm_object;
     bit     is_master = 1;
-    virtual ocdve_apb_if vif;
-    `uvm_object_utils_begin(ocdve_apb_agent_cfg)
+    VIF     vif;
+    `uvm_object_param_utils_begin(ocdve_apb_agent_cfg#(VIF))
         `uvm_field_int (is_master, UVM_DEFAULT)
     `uvm_object_utils_end
 

@@ -1,16 +1,12 @@
-class ocdve_apb_master_driver extends ocdve_apb_driver_base;
-    `uvm_component_utils(ocdve_apb_master_driver)
-
-    //protected virtual ocdve_apb_if vif; moved to ocdve_apb_driver_base
+class ocdve_apb_master_driver(parameter type VIF = virtual ocdve_apb_if) extends ocdve_apb_driver_base#(VIF);
+    `uvm_component_param_utils(ocdve_apb_master_driver#(VIF))
 
     function new(string name = "ocdve_apb_master_driver", uvm_component parent);
         super.new(name, parent);
     endfunction: new
 
-    //extern virtual task run_phase(uvm_phase phase); moved to ocdve_apb_driver_base
     extern virtual task init_signals();
     extern virtual task get_and_drive();
-    //extern function void set_cfg(ocdve_apb_agent_cfg cfg); moved to ocdve_apb_driver_base
 endclass : ocdve_apb_master_driver
 
 task ocdve_apb_master_driver::get_and_drive();
@@ -32,10 +28,11 @@ task ocdve_apb_master_driver::get_and_drive();
         // Access phase
         vif.penable_l <= 1'b1;
         @(posedge vif.clk iff vif.pready === 1'b1);
-        if(req.kind == APB_WRITE)
+        if(req.kind == APB_READ)
             req.data = vif.prdata;
         vif.psel_l    <= 1'b0;
         vif.penable_l <= 1'b0;
+        seq_item_port.item_done(req);
     end    
 endtask: get_and_drive
 

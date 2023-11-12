@@ -1,14 +1,12 @@
-class ocdve_apb_slave_driver extends ocdve_apb_driver_base;
-    `uvm_component_utils(ocdve_apb_slave_driver)
+class ocdve_apb_slave_driver#(parameter type VIF = virtual ocdve_apb_if)  extends ocdve_apb_driver_base#(VIF);
+    `uvm_component_param_utils(ocdve_apb_slave_driver#(VIF))
 
     function new(string name = "ocdve_apb_slave_driver", uvm_component parent);
         super.new(name, parent);
     endfunction: new
 
-    //extern virtual task run_phase(uvm_phase phase);
     extern virtual task init_signals();
     extern virtual task get_and_drive();
-    //extern function void set_cfg(ocdve_apb_agent_cfg cfg);
 endclass : ocdve_apb_slave_driver
 
 task ocdve_apb_master_driver::get_and_drive();
@@ -16,6 +14,7 @@ task ocdve_apb_master_driver::get_and_drive();
         seq_item_port.get_next_item(req);
         @(posedge vif.clk);
         // TODO: 
+        seq_item_port.item_done(req);
     end    
 endtask: get_and_drive
 
