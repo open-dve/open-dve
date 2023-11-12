@@ -18,7 +18,7 @@ ifndef FILELIST_UVM
 endif
 
 ifndef FILELIST_DUT
-	FILELIST_UVM=$(VRF)/list/dut_flist.f
+	FILELIST_DUT=$(VRF)/list/dut_flist.f
 endif
 
 COMP_DIR=build
@@ -52,48 +52,51 @@ RUN_CMD=
 COV_CMD=
 
 ###QST specific 
-VANLZD=vlogan
+VAN=vlog
 VLOG=vlog
 VSIM=vsim
 
 
 
 clean : 
-	rm -rf ./modelsim.ini
-	rm -rf ./work
+	rm -rf ./modelsim.ini ; \
+	rm -rf ./work; \
 	rm -rf $(COMP_DIR)
 
-prep_tb : 
-	[ ! -d $(COMP_DIR) ] && mkdir $(COMP_DIR) 
-	cd $(COMP_DIR)
-	mkdir tb 
-	vlib tb 
+pretb : 
+	[ ! -d $(COMP_DIR) ] && mkdir $(COMP_DIR); \
+	cd $(COMP_DIR); \
+	mkdir tb ; \
+	vlib tb ; \
 	vmap tb tb 
 
-prep_uvm :
-	[ ! -d $(COMP_DIR) ] && mkdir $(COMP_DIR) 
-	cd $(COMP_DIR)
-	mkdir uvm
-	vlib uvm
+preuvm :
+	[ ! -d $(COMP_DIR) ] && mkdir $(COMP_DIR) ; \
+	cd $(COMP_DIR) ; \
+	mkdir uvm; \
+	vlib uvm; \
 	vmap uvm uvm 
 
-prep_dut :
-	[ ! -d $(COMP_DIR) ] && mkdir $(COMP_DIR) 
-	cd $(COMP_DIR)
-	mkdir dut
-	vlib dut
+predut :
+	[ ! -d $(COMP_DIR) ] && mkdir $(COMP_DIR) ; \
+	cd $(COMP_DIR) ; \
+	mkdir dut; \
+	vlib dut; \
 	vmap dut dut 
 
 auvm :  
+	cd $(COMP_DIR) ;\
 	vlog -reportprogress 300 -work uvm -sv -covercells -cover sbcefx3 -f $(FILELIST_UVM)
 
 adut :  
-	vlog -reportprogress 300 -work uvm -sv -covercells -cover sbcefx3 -f $(FILELIST_DUT)
+	cd $(COMP_DIR) ;\
+	vlog -reportprogress 300 -work dut -sv -covercells -cover sbcefx3 -f $(FILELIST_DUT)
 
 atb : 
+	cd $(COMP_DIR) ;\
 	vlog -reportprogress 300 -work tb -sv -covercells -cover sbcefx3 -f $(FILELIST_TB)
 
-all : prep_tb atb 
+all : preuvm auvm predut adut pretb atb 
 
 
 run : 
