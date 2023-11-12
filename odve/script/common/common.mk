@@ -10,10 +10,16 @@ RUN_OPTS+=
 
 ###COMPILE options
 ifndef FILELIST_TB 
-	FILELIST_TB=$(VRF)/list/list.f
+	FILELIST_TB=$(VRF)/list/tb_flist.f
 endif
 
-FILELIST_DUT=
+ifndef FILELIST_UVM
+	FILELIST_UVM=$(VRF)/list/uvm_flist.f
+endif
+
+ifndef FILELIST_DUT
+	FILELIST_UVM=$(VRF)/list/dut_flist.f
+endif
 
 COMP_DIR=build
 
@@ -57,20 +63,42 @@ clean :
 	rm -rf ./work
 	rm -rf $(COMP_DIR)
 
-prep : 
-	mkdir $(COMP_DIR) 
-	vlib $(COMP_DIR) 
-	vmap work $(COMP_DIR)
+prep_tb : 
+	[ ! -d $(COMP_DIR) ] && mkdir $(COMP_DIR) 
+	cd $(COMP_DIR)
+	mkdir tb 
+	vlib tb 
+	vmap tb tb 
 
+prep_uvm :
+	[ ! -d $(COMP_DIR) ] && mkdir $(COMP_DIR) 
+	cd $(COMP_DIR)
+	mkdir uvm
+	vlib uvm
+	vmap uvm uvm 
 
-atb : prep
-	vlog -reportprogress 300 -work work -sv -covercells -cover sbcefx3 -f $(FILELIST_TB)
+prep_dut :
+	[ ! -d $(COMP_DIR) ] && mkdir $(COMP_DIR) 
+	cd $(COMP_DIR)
+	mkdir dut
+	vlib dut
+	vmap dut dut 
 
-all : prep atb 
+auvm :  
+	vlog -reportprogress 300 -work uvm -sv -covercells -cover sbcefx3 -f $(FILELIST_UVM)
+
+adut :  
+	vlog -reportprogress 300 -work uvm -sv -covercells -cover sbcefx3 -f $(FILELIST_DUT)
+
+atb : 
+	vlog -reportprogress 300 -work tb -sv -covercells -cover sbcefx3 -f $(FILELIST_TB)
+
+all : prep_tb atb 
 
 
 run : 
 	vsim $(COMP_DIR).$(TOP) $(RUN_OPTS) -do "run; quit;"
 
- 
+ echo_%:
+	@echo '$*=$($*)'
 

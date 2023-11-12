@@ -5,6 +5,7 @@ DEF=
 RUN_OPTS+=-batch
 
 FILELIST_TB=$(ODVE)/comp/agents/apb/vrf/list/filelist_tb.f
+FILELIST_UVM=$(ODVE)/comp/agents/apb/vrf/list/filelist_uvm.f
 
 COMP_OPTS+=
 

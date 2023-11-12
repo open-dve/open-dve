@@ -1,2 +1,2 @@
 #!/bin/bash
-export ODVE_UVM=${ODVE}/uvm/1800.2-2020-2.0/src
+export ODVE_UVM=${ODVE}/uvm/1800.2-2020-2.0/
