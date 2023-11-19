@@ -1,6 +1,8 @@
 .PHONY: clean all run auvm atb adut elab gcov
 
-PROJ=`pwd`
+PROJ ?=`pwd`
+
+VRF ?=$(PROJ)/vrf
 
 ###DEfines
 DEF_OPTS=
@@ -9,16 +11,16 @@ DEF_OPTS=
 RUN_OPTS +=
 MK_RUN_OPTS+=+UVM_TESTNAME=$(TESTNAME)
 ###COMPILE options
-ifndef FILELIST_TB 
-	FILELIST_TB=$(VRF)/list/tb_flist.f
+ifndef FL_TB 
+	FL_TB=$(VRF)/list/fl_tb.f
 endif
 
-ifndef FILELIST_UVM
-	FILELIST_UVM=$(VRF)/list/uvm_flist.f
+ifndef FL_UVM
+	FL_UVM=$(VRF)/list/fl_uvm.f
 endif
 
-ifndef FILELIST_DUT
-	FILELIST_DUT=$(VRF)/list/dut_flist.f
+ifndef FL_DUT
+	FL_DUT=$(VRF)/list/fl_dut.f
 endif
 
 COMP_DIR=build
@@ -89,15 +91,17 @@ auvm :
 	vlog -reportprogress 300 -work uvm -sv -covercells -cover sbcefx3 \
 	+define+UVM_CMDLINE_NO_DPI \
 	+define+UVM_REGEX_NO_DPI \
-	-f $(FILELIST_UVM) 
+	-f $(FL_UVM) 
 
 adut :  
 	cd $(COMP_DIR) ;\
-	vlog -reportprogress 300 -work dut -sv -covercells -cover sbcefx3 -f $(FILELIST_DUT)
+	vlog -reportprogress 300 -work dut -sv -covercells -cover sbcefx3 \
+	-f $(FL_DUT)
 
 atb : 
 	cd $(COMP_DIR) ;\
-	vlog -reportprogress 300 -work tb -sv -covercells -cover sbcefx3 -f $(FILELIST_TB) \
+	vlog -reportprogress 300 -work tb -sv -covercells -cover sbcefx3 \
+	-f $(FL_TB) \
 	-L dut -L uvm
 
 all : preuvm auvm predut adut pretb atb 

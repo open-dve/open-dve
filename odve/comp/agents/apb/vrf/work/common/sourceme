@@ -1,5 +1,4 @@
-#!/bin/bash 
-
-export ODVE="./../../../../../../"
-export PROJ="./../../../../../../comp/agents/apb"
+#!/bin/bash
+export ODVE=$(readlink -f "../../../../../../")
+export PROJ=$(readlink -f "../../../../../../comp/agents/apb")
 source $ODVE/script/source/common_sourceme

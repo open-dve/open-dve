@@ -32,7 +32,7 @@ def main():
     parser.add_argument("-no_comp", "--no_comp", help="Config JSON file")
 
     args = parser.parse_args()
-    tlist=f"{args.top_list}.list"
+    tlist=f"./../rlist/{args.top_list}.list"
     print (f"file.list is : {tlist}")
 
     rf = readlist(f"{tlist}")
@@ -56,4 +56,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()    

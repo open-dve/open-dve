@@ -6,8 +6,90 @@ from datetime import datetime, timedelta
 # Sample cron schedules and durations (replace with your actual cron expressions and durations)
 cron_schedule_durations = [
     {"schedule": "0 0 */7 * *", "duration_minutes": 120},   # Every 5 minutes, duration 10 minutes
-    {"schedule": "0 2 */7 * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
-    {"schedule": "0 4 */7 * *", "duration_minutes": 240},   # Monthly on the 1st at midnight, duration 24 hours
+    {"schedule": "0 1 */2 * *", "duration_minutes": 420},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 2 */7 * *", "duration_minutes": 520},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 3 */3 * *", "duration_minutes": 620},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 4 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 4 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 12 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 14 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "59 2 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "40 3 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "33 4 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 5 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 5 */7 * *", "duration_minutes": 240},   # Monthly on the 1st at midnight, duration 24 hours
+     {"schedule": "0 0 */7 * *", "duration_minutes": 120},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 1 */2 * *", "duration_minutes": 420},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 2 */7 * *", "duration_minutes": 520},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 3 */3 * *", "duration_minutes": 620},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 4 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 4 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 12 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 14 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "59 2 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "40 3 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "33 4 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 5 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 5 */7 * *", "duration_minutes": 240},   # Monthly on the 1st at midnight, duration 24 hours
+     {"schedule": "0 0 */7 * *", "duration_minutes": 120},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 1 */2 * *", "duration_minutes": 420},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 2 */7 * *", "duration_minutes": 520},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 3 */3 * *", "duration_minutes": 620},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 4 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 4 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 12 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 14 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "59 2 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "40 3 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "33 4 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 5 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 5 */7 * *", "duration_minutes": 240},   # Monthly on the 1st at midnight, duration 24 hours
+     {"schedule": "0 0 */7 * *", "duration_minutes": 120},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 1 */2 * *", "duration_minutes": 420},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 2 */7 * *", "duration_minutes": 520},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 3 */3 * *", "duration_minutes": 620},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 4 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 4 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 12 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 14 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "59 2 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "40 3 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "33 4 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 5 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 5 */7 * *", "duration_minutes": 240},   # Monthly on the 1st at midnight, duration 24 hours
+     {"schedule": "0 0 */7 * *", "duration_minutes": 120},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 1 */2 * *", "duration_minutes": 420},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 2 */7 * *", "duration_minutes": 520},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 3 */3 * *", "duration_minutes": 620},   # Every 5 minutes, duration 10 minutes
+    {"schedule": "0 4 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 4 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 12 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 14 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "59 2 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "40 3 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "33 4 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 5 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 23 *   * *", "duration_minutes": 120},   # Daily at 3:00 AM, duration 60 minutes
+    {"schedule": "0 5 */7 * *", "duration_minutes": 240}   # Monthly on the 1st at midnight, duration 24 hours
     # Add more cron expressions and durations as needed
 ]
 
@@ -15,7 +97,7 @@ cron_schedule_durations = [
 df = pd.DataFrame(columns=['Job', 'Start Time', 'End Time', 'Duration'])
 
 # Function to generate schedule times and durations for visualization
-def generate_schedule(cron_schedule, num_points=10):
+def generate_schedule(cron_schedule, num_points=11):
     now = datetime.now()
     cron = croniter(cron_schedule['schedule'], now)
     start_times = [cron.get_next(datetime) for _ in range(num_points)]
@@ -24,16 +106,19 @@ def generate_schedule(cron_schedule, num_points=10):
 
 # Populate the DataFrame with job names, start times, end times, and durations
 for i, cron_schedule in enumerate(cron_schedule_durations):
+    print (i)
     job_name = f"Job {i + 1}"
     start_times, end_times = generate_schedule(cron_schedule)
-    durations = [cron_schedule['duration_minutes']] * len(start_times)
-    df = pd.concat([df, pd.DataFrame({'Job': [job_name] * len(start_times),
+    #durations = [cron_schedule['duration_minutes']] * len(start_times)
+    durations = cron_schedule['duration_minutes'] 
+    df = pd.concat([df, pd.DataFrame({'Job': job_name,
                                       'Start Time': start_times,
                                       'End Time': end_times,
                                       'Duration': durations})])
 
 # Assign a unique color to each job
 colors = px.colors.qualitative.Set1[:len(cron_schedule_durations)]
+colors = px.colors.qualitative.Set1 * 20
 color_dict = {job: color for job, color in zip(df['Job'].unique(), colors)}
 df['Color'] = df['Job'].map(color_dict)
 

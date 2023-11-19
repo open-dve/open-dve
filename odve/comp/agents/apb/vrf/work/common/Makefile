@@ -1,14 +1,12 @@
-PROJ=`pwd`
+#PROJ=`pwd`
 
 DEF=
 
-RUN_OPTS+=-batch
+RUN_OPTS += -batch
 
-FILELIST_TB=$(ODVE)/comp/agents/apb/vrf/list/filelist_tb.f
-
-FILELIST_UVM=$(ODVE)/comp/agents/apb/vrf/list/filelist_uvm.f
-
-FILELIST_DUT=$(ODVE)/comp/agents/apb/vrf/list/filelist_dut.f
+#FL_TB=$(ODVE)/comp/agents/apb/vrf/list/fl_tb.f
+#FL_UVM=$(ODVE)/comp/agents/apb/vrf/list/fl_uvm.f
+#FL_DUT=$(ODVE)/comp/agents/apb/vrf/list/fl_dut.f
 
 COMP_OPTS+=
 
