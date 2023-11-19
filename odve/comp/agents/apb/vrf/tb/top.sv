@@ -4,7 +4,7 @@ module top;
 
     apb_if apb_if ();
 
-    initial repeat (30) $display ("Hello world");
+    initial repeat (1) $display ("Hello From TB");
     // Точка входа для запуска UVM теста
     initial begin
         uvm_config_db #(uvm_object_wrapper)::set(null, "*", "uvm_test_top", read_test::type_id::get());

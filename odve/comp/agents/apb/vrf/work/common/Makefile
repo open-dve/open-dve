@@ -8,6 +8,8 @@ RUN_OPTS += -batch
 #FL_UVM=$(ODVE)/comp/agents/apb/vrf/list/fl_uvm.f
 #FL_DUT=$(ODVE)/comp/agents/apb/vrf/list/fl_dut.f
 
+DPI_C_PATH=$(ODVE_UVM)/src/dpi
+
 COMP_OPTS+=
 
 COV_OPTS+=
