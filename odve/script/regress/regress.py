@@ -15,13 +15,14 @@ else :
 
 lib_path=f"{odve}/script/regress/"
 sys.path.append(lib_path)
-from readlist import readlist
+#local python classes
+from readlist  import readlist
 from list2json import list2json
 from jobrunner import JobRunner
 
 tlist=''
 maxj=4
-
+cwd=os.getcwd()
 cmdsj = {}
 cmdsl = []
 def main():
@@ -32,7 +33,8 @@ def main():
     parser.add_argument("-no_comp", "--no_comp", help="Config JSON file")
 
     args = parser.parse_args()
-    tlist=f"./../rlist/{args.top_list}.list"
+
+    tlist=f"{cwd}/../rlist/{args.top_list}.list"
     print (f"file.list is : {tlist}")
 
     rf = readlist(f"{tlist}")
