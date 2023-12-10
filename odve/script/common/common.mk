@@ -74,30 +74,48 @@ VSIM=vsim
 GCC=gcc
 
 DPI_C_PATH +=
-INC_PATH += 
-ROOT_INC_META := /* /*/* /*/*/*
+INC_PATH   += 
+ROOT_INC_META := #/* /*/* /*/*/*
 INC_ALL_PATH = $(addprefix $(INC_PATH), $(ROOT_INC_META))
 
-DPI_C_INC_DIRS = $(foreach d, $(DPI_C_PATH),   $(wildcard $(d)/.))
-DPI_C_INC_DIRS = $(foreach d, $(INC_ALL_PATH), $(wildcard $(d)/.))
+DPI_C_INC_DIRS  = $(foreach d, $(DPI_C_PATH),   $(wildcard $(d)/.))
+DPI_C_INC_DIRS += $(foreach d, $(INC_ALL_PATH), $(wildcard $(d)/.))
 
-SRCS =  $(foreach d, $(DPI_C_PATH), $(wildcard $(d)/*.c) )
+SRCS += $(foreach d, $(DPI_C_PATH), $(wildcard $(d)/*.c) )
 SRCS += $(foreach d, $(DPI_C_PATH), $(wildcard $(d)/*.cpp) )
 SRCS += $(foreach d, $(DPI_C_PATH), $(wildcard $(d)/*.cc) )
 
-INCLUDE =  -I$(MS_GCC_PATH)/include
-INCLUDE += $(foreach d, $(DPI_C_IN_DIRS), -I$(d))
-INCLUDE += -I$(BUILD_PATH)
+INCLUDE += -I$(MS_HOME)/include
+INCLUDE += $(foreach d, $(DPI_C_INC_DIRS), -I$(d))
+INCLUDE += -I$(COMP_DIR)
 
 C_DEFS += 
 CFLAGS = -fPIC -Wall $(INCLUDE) $(C_DEFS)
 
 OBJS  = $(SRCS:%.c=%.o) $(SRCS:%.cpp=%.o)
-O_OBJS= $(foreach d, $(SIM_DIR) $(wildcard $(d)/*.o))
+O_OBJS= $(foreach d, $(RUN_DIR), $(wildcard $(d)/*.o))
 
 
-mkdir_run : 
-	[ ! -d $(RUN_DIR) ] && mkdir $(RUN_DIR);
+mkdir_run :
+	[ ! -d $(RUN_DIR) ] && mkdir $(RUN_DIR) || exit 0;
+
+
+UVM_DPI_SRC += $(ODVE_UVM)/src/dpi/uvm_dpi.cc
+
+UVM_DPI_INC += -I$(ODVE_UVM)/src/dpi -I$(MS_HOME)/include -L$(MS_HOME)/modelsim_lib
+
+UVM_C_DEFS  += -DQUESTA
+
+UVM_CFLAGS   = -fPIC -Wall $(UVM_DPI_INC) $(UVM_C_DEFS)
+
+#UVM_DPI_C_RUN_OPTS = -sv_lib $(COMP_DIR)/uvm_dpi
+
+uvm_dpi_o : 
+	$(GCC) -c $(UVM_CFLAGS) $(UVM_DPI_SRC) -o $(COMP_DIR)/uvm_dpi.o ; \
+
+uvm_dpi_so :
+	$(GCC) -shared -L$(ODVE_UVM)/src/dpi -L$(MS_HOME)/modelsim_lib -L$(MS_HOME)/win32aloem -l$(MS_HOME)/win32aloem/mtipli.dll $(UVM_C_DEFS) -o $(COMP_DIR)/uvm_dpi.dll $(COMP_DIR)/uvm_dpi.o -Wl,--no-as-needed
+
 
 clean : 
 	rm -rf ./modelsim.ini ; \
@@ -177,12 +195,15 @@ erun :
 
 prerun : mkdir_run
 	cp -r -n $(DEFAULT_RUN_DIR)/modelsim.ini $(RUN_DIR); \
+	
+#cp -r -n $(COMP_DIR)/uvm_dpi.so $(RUN_DIR); \
 
 
-run : prerun
+run : prerun 
 	cd $(RUN_DIR); \
 	vsim tb.$(TOP) \
 		$(RUN_OPTS) \
+		$(UVM_DPI_C_RUN_OPTS) \
 		$(MK_RUN_OPTS) \
 		-l run.log \
 		-do "run; quit;"

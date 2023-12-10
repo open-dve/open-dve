@@ -1,2 +1,4 @@
 .vscode/launch.json
 odve/script/regress/__pycache__/*
+odve/comp/agents/apb/vrf/work/run/*__run/*
+odve/comp/agents/apb/vrf/work/run/build/*
