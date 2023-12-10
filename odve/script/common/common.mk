@@ -114,7 +114,9 @@ uvm_dpi_o :
 	$(GCC) -c $(UVM_CFLAGS) $(UVM_DPI_SRC) -o $(COMP_DIR)/uvm_dpi.o ; \
 
 uvm_dpi_so :
-	$(GCC) -shared -L$(ODVE_UVM)/src/dpi -L$(MS_HOME)/modelsim_lib -L$(MS_HOME)/win32aloem -l$(MS_HOME)/win32aloem/mtipli.dll $(UVM_C_DEFS) -o $(COMP_DIR)/uvm_dpi.dll $(COMP_DIR)/uvm_dpi.o -Wl,--no-as-needed
+	$(GCC) -shared $(UVM_DPI_INC) -L$(ODVE_UVM)/src/dpi -L$(MS_HOME)/modelsim_lib -L$(MS_HOME)/win32aloem $(UVM_C_DEFS) -o $(COMP_DIR)/uvm_dpi.dll $(UVM_DPI_SRC)
+#$(GCC) -shared -o $(COMP_DIR)/uvm_dpi.dll $(COMP_DIR)/uvm_dpi.o -W -DQUESTA 
+
 
 
 clean : 
@@ -159,10 +161,10 @@ predut :
 auvm :  
 	cd $(COMP_DIR) ;\
 	vlog -reportprogress 300 -work uvm -sv -covercells -cover sbcefx3 \
+	-f $(FL_UVM) \
 	+define+UVM_CMDLINE_NO_DPI \
 	+define+UVM_REGEX_NO_DPI \
-	-f $(FL_UVM) 
-
+	
 adut :  
 	cd $(COMP_DIR) ;\
 	vlog -reportprogress 300 -work dut -sv -covercells -cover sbcefx3 \
