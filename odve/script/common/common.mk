@@ -71,7 +71,7 @@ VLOG=vlog
 VSIM=vsim
 
 #GCC 
-GCC=gcc
+GCC=g++
 
 DPI_C_PATH +=
 INC_PATH   += 
@@ -102,20 +102,24 @@ mkdir_run :
 
 UVM_DPI_SRC += $(ODVE_UVM)/src/dpi/uvm_dpi.cc
 
-UVM_DPI_INC += -I$(ODVE_UVM)/src/dpi -I$(MS_HOME)/include -L$(MS_HOME)/modelsim_lib
+UVM_DPI_INC += -I$(ODVE_UVM)/src/dpi -I$(MS_HOME)/include 
+
+#-L$(MS_HOME)/modelsim_lib
 
 UVM_C_DEFS  += -DQUESTA
 
-UVM_CFLAGS   = -fPIC -Wall $(UVM_DPI_INC) $(UVM_C_DEFS)
+UVM_CFLAGS   = $(UVM_DPI_INC) $(UVM_C_DEFS)
 
-#UVM_DPI_C_RUN_OPTS = -sv_lib $(COMP_DIR)/uvm_dpi
+UVM_DPI_C_RUN_OPTS = -sv_lib ./../$(COMP_DIR)/uvm_dpi
 
 uvm_dpi_o : 
 	$(GCC) -c $(UVM_CFLAGS) $(UVM_DPI_SRC) -o $(COMP_DIR)/uvm_dpi.o ; \
 
 uvm_dpi_so :
-	$(GCC) -shared $(UVM_DPI_INC) -L$(ODVE_UVM)/src/dpi -L$(MS_HOME)/modelsim_lib -L$(MS_HOME)/win32aloem $(UVM_C_DEFS) -o $(COMP_DIR)/uvm_dpi.dll $(UVM_DPI_SRC)
-#$(GCC) -shared -o $(COMP_DIR)/uvm_dpi.dll $(COMP_DIR)/uvm_dpi.o -W -DQUESTA 
+	$(GCC) -shared -o $(COMP_DIR)/uvm_dpi.dll  $(COMP_DIR)/uvm_dpi.o $(MS_HOME)/win32aloem/mtipli.dll 
+
+
+#	$(GCC) -shared $(UVM_DPI_INC) -L$(ODVE_UVM)/src/dpi -L$(MS_HOME)/modelsim_lib -L$(MS_HOME)/win32aloem $(UVM_C_DEFS) -o $(COMP_DIR)/uvm_dpi.dll $(UVM_DPI_SRC)
 
 
 
@@ -162,8 +166,10 @@ auvm :
 	cd $(COMP_DIR) ;\
 	vlog -reportprogress 300 -work uvm -sv -covercells -cover sbcefx3 \
 	-f $(FL_UVM) \
-	+define+UVM_CMDLINE_NO_DPI \
-	+define+UVM_REGEX_NO_DPI \
+
+
+#	+define+UVM_CMDLINE_NO_DPI \
+#	+define+UVM_REGEX_NO_DPI \
 	
 adut :  
 	cd $(COMP_DIR) ;\
@@ -186,7 +192,7 @@ elab :
 all : prework preuvm auvm predut adut pretb atb erun
 
 erun : 
-	[ ! -d $(DEFAULT_RUN_DIR) ] && mkdir $(DEFAULT_RUN_DIR)
+	[ ! -d $(DEFAULT_RUN_DIR) ] && mkdir $(DEFAULT_RUN_DIR); \
 	cp -r -n $(COMP_DIR)/modelsim.ini $(DEFAULT_RUN_DIR); \
 	cd $(DEFAULT_RUN_DIR); \
 	vmap work ./../$(COMP_DIR)/work ;\
