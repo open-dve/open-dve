@@ -1,5 +1,6 @@
 #!/bin/bash
-export ODVE_UVM=${ODVE}/uvm/1800.2-2020-2.0/
+export ODVE_UVM=${ODVE}/uvm/uvm-1.1d/
+#export ODVE_UVM=${ODVE}/uvm/1800.2-2020-2.0/
 export MS_HOME=$(dirname $(dirname $(which vsim)))
 export MS_GCC_PATH="${MS_HOME}/gcc-4.2.1-mingw32vc12"
 export PATH="${MS_GCC_PATH}/bin:${PATH}"

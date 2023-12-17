@@ -110,17 +110,27 @@ UVM_C_DEFS  += -DQUESTA
 
 UVM_CFLAGS   = $(UVM_DPI_INC) $(UVM_C_DEFS)
 
+UVM_DPI_RECOMPILE ?= 1
+
+UVM_DPI_MODE ?= MS_WIN32
+
+ifeq ($(UVM_DPI_RECOMPILE), 1) 
+	ifeq ($(UVM_DPI_MODE), MS_WIN32)
+		UVM_DPI_TARG    = uvm_dpi_o uvm_dpi_so
+		UVM_DPI_OBJ     = uvm_dpi.o
+		UVM_DPI_SHARED  = uvm_dpi.dll
+	endif
+endif  
+
 UVM_DPI_C_RUN_OPTS = -sv_lib ./../$(COMP_DIR)/uvm_dpi
 
+uvm_dpi : $(UVM_DPI_TARG) 
+
 uvm_dpi_o : 
-	$(GCC) -c $(UVM_CFLAGS) $(UVM_DPI_SRC) -o $(COMP_DIR)/uvm_dpi.o ; \
+	$(GCC) -c $(UVM_CFLAGS) $(UVM_DPI_SRC) -o $(COMP_DIR)/$(UVM_DPI_OBJ) ; 
 
-uvm_dpi_so :
-	$(GCC) -shared -o $(COMP_DIR)/uvm_dpi.dll  $(COMP_DIR)/uvm_dpi.o $(MS_HOME)/win32aloem/mtipli.dll 
-
-
-#	$(GCC) -shared $(UVM_DPI_INC) -L$(ODVE_UVM)/src/dpi -L$(MS_HOME)/modelsim_lib -L$(MS_HOME)/win32aloem $(UVM_C_DEFS) -o $(COMP_DIR)/uvm_dpi.dll $(UVM_DPI_SRC)
-
+uvm_dpi_so : 
+	$(GCC) -shared $(COMP_DIR)/$(UVM_DPI_OBJ) -o $(COMP_DIR)/$(UVM_DPI_SHARED) $(MS_HOME)/win32aloem/mtipli.dll 
 
 
 clean : 
@@ -162,7 +172,7 @@ predut :
 	vlib dut; \
 	vmap dut dut 
 
-auvm :  
+auvm : 
 	cd $(COMP_DIR) ;\
 	vlog -reportprogress 300 -work uvm -sv -covercells -cover sbcefx3 \
 	-f $(FL_UVM) \
@@ -189,9 +199,9 @@ elab :
 	-L dut -L uvm
 	-l elab.log
 
-all : prework preuvm auvm predut adut pretb atb erun
+all : prework preuvm auvm uvm_dpi predut adut pretb atb elib 
 
-erun : 
+elib : 
 	[ ! -d $(DEFAULT_RUN_DIR) ] && mkdir $(DEFAULT_RUN_DIR); \
 	cp -r -n $(COMP_DIR)/modelsim.ini $(DEFAULT_RUN_DIR); \
 	cd $(DEFAULT_RUN_DIR); \
@@ -203,6 +213,7 @@ erun :
 
 prerun : mkdir_run
 	cp -r -n $(DEFAULT_RUN_DIR)/modelsim.ini $(RUN_DIR); \
+	cp -r -n $(COMP_DIR)/$(UVM_DPI_SHARED) $(RUN_DIR); \
 	
 #cp -r -n $(COMP_DIR)/uvm_dpi.so $(RUN_DIR); \
 
