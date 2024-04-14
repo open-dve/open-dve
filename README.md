@@ -35,4 +35,16 @@ To run TB :
 - install gnu make 
 - install python3
 - install bash for git
-- install tool readlink 
+- install tool readlink
+
+To run TB with Verilator 
+(https://veripool.org/guide/latest/install.html#installation)
+Windows:
+- https://cygwin.com/install.html
+- install cygwin 
+- install make 
+- install python3 
+- install gcc-g++
+- install flex
+- install bison
+- install autconf
