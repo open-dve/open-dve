@@ -26,7 +26,9 @@ clean:
 	rm -rf obj_dir
 
 all:
-	$(VERILATOR_ROOT)/bin/verilator $(BUILD_OPTS) ${ODVE}/comp/agents/uart/vrf/dut/dut.sv
+	$(VERILATOR_ROOT)/bin/verilator $(BUILD_OPTS) -F $(VRF)/list/fl.f
+	
+#${ODVE}/comp/agents/uart/vrf/dut/dut.sv
 	
 #-F $(VRF)/list/fl.f
 
