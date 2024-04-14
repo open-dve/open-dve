@@ -11,9 +11,9 @@ module top;
         $display ("First verialtor steps");
         #20ns;
         begin
-            odve_uart_driver drv = new();
+            automatic odve_uart_driver drv = new();
             for (int i=0; i < 10; i++) begin
-                odve_uart_item item = new(); 
+                automatic odve_uart_item item = new(); 
                 item.odve_randomize();
                 drv.run_item(item);
             end
