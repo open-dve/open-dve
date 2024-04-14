@@ -6,8 +6,9 @@ class odve_uart_item;
     function new ();
     endfunction 
 
-    function randomize();
-        data = $urandom();
+    function void odve_randomize();
+        int urd= $urandom;
+        data = urd[7:0];
     endfunction 
-    
+
 endclass 

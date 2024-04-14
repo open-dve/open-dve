@@ -1,0 +1,37 @@
+.PHONY: all run clean
+
+BIN=Vtop
+VRF=$(ODVE)/comp/agents/uart/vrf
+DUT=$(VRF)/dut
+TB=$(VRF)/tb
+#VERILATOR_ROOT=/cygdrive/c/cygwin64/home/viktor/verilator/verilator
+#UVM_HOME?=$(PROJ)/uvm
+
+#export PROJ
+#export DUT
+#export UVM_HOME
+
+NPROC=4
+MODE ?= --binary
+BUILD_OPTS = \
+	--timescale 1ns/1ps \
+	--cc \
+	$(MODE) \
+	--timing \
+	-O3 \
+	-j $(NPROC) \
+	-o $(BIN)
+
+clean:
+	rm -rf obj_dir
+
+all:
+	$(VERILATOR_ROOT)/bin/verilator $(BUILD_OPTS) ${ODVE}/comp/agents/uart/vrf/dut/dut.sv
+	
+#-F $(VRF)/list/fl.f
+
+run:
+	./obj_dir/$(BIN)
+
+version:
+	$(VERILATOR_ROOT)/bin/verilator --version

@@ -17,7 +17,8 @@ RUN_PATH=$(PWD)/$(RUN_DIR)
 
 RUN_OPTS +=
 
-MK_RUN_OPTS+=+UVM_TESTNAME=$(TESTNAME)
+MK_RUN_OPTS+=+UVM_TESTNAME=$(TESTNAME) \
+-L dut 
 #MK_RUN_OPTS+=-sv_lib ${ODVE_UVM}/src/dpi
 
 ###COMPILE options
@@ -199,7 +200,8 @@ elab :
 	-L dut -L uvm
 	-l elab.log
 
-all : prework preuvm auvm uvm_dpi predut adut pretb atb elib 
+ALL_CMD ?= prework preuvm auvm uvm_dpi predut adut pretb atb elib
+all :  $(ALL_CMD)
 
 elib : 
 	[ ! -d $(DEFAULT_RUN_DIR) ] && mkdir $(DEFAULT_RUN_DIR); \
@@ -225,7 +227,7 @@ run : prerun
 		$(UVM_DPI_C_RUN_OPTS) \
 		$(MK_RUN_OPTS) \
 		-l run.log \
-		-do "run; quit;"
+		-do "run -all; quit;"
 
 dpi_c : mkdir_run $(OBJS) so co
 

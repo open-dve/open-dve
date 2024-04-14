@@ -1,2 +1,6 @@
 #PLease go to common folder to edit local regression settings.
-include ./../common/Makefile
+ifndef VERI
+	include ./../common/Makefile
+else
+	include ./../common/Makefile_veri
+endif 

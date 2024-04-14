@@ -1,2 +1,0 @@
--f ${PROJ}/vrf/tb/list/flist_dut.f
--f ${PROJ}/vrf/tb/list/flist_tb.f
