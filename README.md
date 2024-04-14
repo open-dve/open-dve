@@ -31,7 +31,7 @@ Project give possibility to unify TB building/running/result gathering.
     - make a standard for LOG message generation to have possibility recollect statistics of errors and reuse it to predict or give a help understand the error reason
 
 
-To run TB : 
+To run TB with Questa: 
 - install gnu make 
 - install python3
 - install bash for git
@@ -39,12 +39,16 @@ To run TB :
 
 To run TB with Verilator 
 (https://veripool.org/guide/latest/install.html#installation)
-Windows:
-- https://cygwin.com/install.html
-- install cygwin 
-- install make 
-- install python3 
-- install gcc-g++
-- install flex
-- install bison
-- install autconf
+- Windows:
+    - https://cygwin.com/install.html (follow description to install all packages)
+    - install cygwin (please install cygwin to C:/cygwin64 - in this case common_sourceme add it to path)
+    - install make 
+    - install python3 
+    - install gcc-g++ (should be 10 and more version)
+    - install flex
+    - install bison
+    - install autconf 
+    
+    - Make sure that you provide VERILATOR_ROOT, 
+    - Make sure that you added it to PATH
+    - call `make clean all run VERI=1`
