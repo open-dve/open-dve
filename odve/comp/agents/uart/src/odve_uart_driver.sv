@@ -4,6 +4,6 @@ class odve_uart_driver;
     endfunction 
 
     task run_item(odve_uart_item item);
-        repeat(8) $display (item.data);
+        repeat(1) $display (item.data);
     endtask 
 endclass 
