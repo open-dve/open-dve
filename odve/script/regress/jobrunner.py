@@ -7,7 +7,8 @@ class JobRunner :
 
     def run_command(self, command):
         try:
-            result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            result = subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                     universal_newlines=True, encoding="utf-8", errors="replace")
             output = result.stdout
             error = result.stderr
             return_code = result.returncode
