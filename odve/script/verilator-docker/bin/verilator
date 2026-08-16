@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Docker-backed Verilator, used as $(VERILATOR_ROOT)/bin/verilator by
+# Container-backed Verilator, used as $(VERILATOR_ROOT)/bin/verilator by
 # vrf/work/common/Makefile_veri when no native Verilator install is on PATH.
 #
 # Mounts the repo root (derived from $ODVE, which every odve sourceme
@@ -7,19 +7,41 @@
 # paths already used by this framework's filelists resolve unchanged, and
 # forwards ODVE/ODVE_UVM so the ${ODVE}-style expansion inside .f files
 # still works when verilator itself parses them.
+#
+# Run script/verilator-docker/setup.sh once first to fetch the image.
 set -euo pipefail
 
 VERILATOR_DOCKER_IMAGE="${VERILATOR_DOCKER_IMAGE:-verilator/verilator:latest}"
 
 if [ -z "${ODVE:-}" ]; then
-    echo "verilator (docker wrapper): \$ODVE is not set - source sourceme first" >&2
+    echo "verilator (container wrapper): \$ODVE is not set - source sourceme first" >&2
+    exit 1
+fi
+
+# docker unless told otherwise; podman is a drop-in alternative.
+ENGINE="${ODVE_CONTAINER_ENGINE:-}"
+if [ -z "$ENGINE" ]; then
+    for e in docker podman; do
+        if command -v "$e" >/dev/null 2>&1; then ENGINE="$e"; break; fi
+    done
+fi
+if [ -z "$ENGINE" ]; then
+    echo "verilator (container wrapper): neither docker nor podman on PATH." >&2
+    echo "  run ${ODVE}/script/verilator-docker/setup.sh for install instructions" >&2
     exit 1
 fi
 
 REPO_ROOT="$(cd "$ODVE/.." && pwd)"
 
-exec docker run --rm \
-    -u "$(id -u):$(id -g)" \
+# Rootless podman already maps the calling user onto the container user via
+# keep-id; docker needs to be told explicitly or it writes root-owned output.
+ID_OPTS=(-u "$(id -u):$(id -g)")
+if [ "$(basename "$ENGINE")" = "podman" ]; then
+    ID_OPTS=(--userns=keep-id)
+fi
+
+exec "$ENGINE" run --rm \
+    "${ID_OPTS[@]}" \
     -e ODVE \
     -e ODVE_UVM \
     -v "$REPO_ROOT:$REPO_ROOT" \
