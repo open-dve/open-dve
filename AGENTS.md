@@ -6,7 +6,7 @@ This file provides guidance to AI coding agents (Claude Code, Codex, etc.) when 
 
 `open-dve` is a UVM/SystemVerilog verification framework ("Open Design Verification Environment") that unifies testbench compilation, running, and regression across multiple agents/VIPs (APB, AHB, AXI, PCIe, NVMe, MPHY, UNIPRO, UFS — per the roadmap in `README.md`; several are still placeholders). Its content lives under `odve/` (this repo is consumed as the `odve` git submodule by downstream repos such as `amba-axi`, where it's checked out at `<downstream>/odve`).
 
-Targets Mentor/Siemens **Questa/ModelSim** (`vlog`/`vsim`/`vmap`/`vlib`) as the primary simulator; Verilator support exists but is currently disabled in `script/source/common_sourceme`. See `README.md` for Questa/Verilator toolchain install prerequisites (make, python3, bash, readlink, and — for Verilator on Windows — Cygwin, gcc-g++ 10+, flex, bison, autoconf).
+Targets Mentor/Siemens **Questa/ModelSim** (`vlog`/`vsim`/`vmap`/`vlib`) as the primary simulator, with **Verilator** as a supported second simulator via `make ... VERILATOR=1` (legacy spelling `VERI=1`). Both are expected to pass before commit/push — see the `vrf-workflow` skill. See `README.md` for toolchain prerequisites (make, python3, bash, readlink; Verilator runs from a container, needing only docker or podman — run `script/verilator-docker/setup.sh` once to fetch the image).
 
 ## Commands
 
@@ -48,7 +48,8 @@ source sourceme
 - `comp/agents/<protocol>/` — one UVM agent per protocol: `apb`, `axi`, `ahb`, `jtag`, `spi`, `uart`. **`apb` is the most complete and is the best reference implementation** to copy patterns from when building out another agent.
 - `comp/common/` — shared base classes (`base/odve_common_base_item.sv`) and macros (`macro/odve_macro.sv`, e.g. `` `odve_rand(obj) `` calls `obj.user_randomize()`).
 - `script/common/common.mk` — the single shared Make include behind every agent's `vrf/work/*/Makefile`. Defines the `prework/preuvm/auvm/predut/adut/pretb/atb/elib/run/clean/rclean/aclean` targets and the `FL_TB`/`FL_UVM`/`FL_DUT`/`TOP`/`TESTNAME`/`RUN_DIR`/`COMP_DIR` variables.
-- `script/source/common_sourceme` — sets `ODVE_UVM` and locates the Questa install (`MS_HOME`) from `vsim` on `PATH`. Verilator env vars are present but commented out.
+- `script/source/common_sourceme` — sets `ODVE_UVM`, locates the Questa install (`MS_HOME`) from `vsim` on `PATH`, and points `VERILATOR_ROOT` at the containerised Verilator in `script/verilator-docker/` (preset `VERILATOR_ROOT` yourself to use a native install instead).
+- `script/verilator-docker/` — containerised Verilator: `setup.sh` (one-time image fetch, with OS/engine detection and an offline `--load` path) and `bin/verilator` (docker/podman shim used as `$VERILATOR_ROOT/bin/verilator`).
 - `script/regress/` — the regression runner: `regress.py` (entry point), `readlist.py` (parses `*.list` files), `list2json.py` (converts parsed runs to job commands), `jobrunner.py` (parallel job execution), `list2json.py`.
 - `script/schedule/`, `script/pdf/pdf2req/` — scheduling and requirements-doc tooling (early/placeholder).
 - `uvm/` — vendored UVM library sources: `uvm-1.1d` (default, per `common_sourceme`) and `1800.2-2020-2.0` (available, not default). Used instead of relying on a simulator-provided UVM.
