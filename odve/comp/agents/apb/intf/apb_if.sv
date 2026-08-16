@@ -1,7 +1,7 @@
 interface apb_if (
-    wire clk,
-    wire we,
-    wire data
+    input wire clk,
+    input wire we,
+    output wire data
 );
 logic data_r;
 

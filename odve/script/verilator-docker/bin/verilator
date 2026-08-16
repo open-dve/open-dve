@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Docker-backed Verilator, used as $(VERILATOR_ROOT)/bin/verilator by
+# vrf/work/common/Makefile_veri when no native Verilator install is on PATH.
+#
+# Mounts the repo root (derived from $ODVE, which every odve sourceme
+# script exports) at the identical path inside the container, so absolute
+# paths already used by this framework's filelists resolve unchanged, and
+# forwards ODVE/ODVE_UVM so the ${ODVE}-style expansion inside .f files
+# still works when verilator itself parses them.
+set -euo pipefail
+
+VERILATOR_DOCKER_IMAGE="${VERILATOR_DOCKER_IMAGE:-verilator/verilator:latest}"
+
+if [ -z "${ODVE:-}" ]; then
+    echo "verilator (docker wrapper): \$ODVE is not set - source sourceme first" >&2
+    exit 1
+fi
+
+REPO_ROOT="$(cd "$ODVE/.." && pwd)"
+
+exec docker run --rm \
+    -u "$(id -u):$(id -g)" \
+    -e ODVE \
+    -e ODVE_UVM \
+    -v "$REPO_ROOT:$REPO_ROOT" \
+    -w "$(pwd)" \
+    "$VERILATOR_DOCKER_IMAGE" \
+    "$@"

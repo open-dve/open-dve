@@ -1,0 +1,37 @@
+.PHONY: all run clean version
+
+VRF ?=$(PROJ)/vrf
+BIN=Vtop
+NPROC=4
+MODE ?= --binary
+ifndef TOP
+	TOP=top
+endif
+BUILD_OPTS = \
+	--timescale 1ns/1ps \
+	--cc \
+	$(MODE) \
+	--timing \
+	--vpi \
+	-Wno-fatal \
+	-O3 \
+	-j $(NPROC) \
+	-o $(BIN) \
+	--top-module $(TOP)
+
+# UVM's DPI shim (regex/cmdline/HDL-backdoor); linked in directly since
+# Verilator has no simulator-native equivalent to preload like Questa's
+# -sv_lib. --vpi above pulls in the vpi_* runtime it calls into.
+DPI_SRCS = ${ODVE_UVM}/src/dpi/uvm_dpi.cc
+
+clean:
+	rm -rf obj_dir
+
+all:
+	$(VERILATOR_ROOT)/bin/verilator $(BUILD_OPTS) -F $(VRF)/list/fl.f $(DPI_SRCS)
+
+run:
+	./obj_dir/$(BIN)
+
+version:
+	$(VERILATOR_ROOT)/bin/verilator --version
