@@ -37,7 +37,37 @@ To run TB with Questa:
 - install bash for git
 - install tool readlink
 
-To run TB with Verilator 
+To run TB with Verilator
+
+## Recommended: containerised Verilator (docker or podman)
+
+No Verilator/gcc/flex/bison install needed - only a container engine.
+Works on WSL, native Linux, macOS and Git Bash on Windows.
+
+1. Download the Verilator image once:
+   ```bash
+   cd odve/script/verilator-docker
+   ./setup.sh
+   ```
+   It reports the detected OS and container engine, prints install
+   instructions if neither docker nor podman is present (`--install-engine`
+   installs podman for you on Linux/WSL), then pulls the image.
+
+2. Build and run:
+   ```bash
+   cd odve/comp/agents/apb/vrf/work/run
+   source sourceme
+   make clean all run VERILATOR=1
+   ```
+
+Offline machines (e.g. CAD hosts without internet) - on a connected
+machine run `docker save verilator/verilator:latest | gzip > verilator-image.tar.gz`,
+copy the file over, then `./setup.sh --load verilator-image.tar.gz`.
+
+See `odve/script/verilator-docker/README.md` for all options and
+environment variables.
+
+## Alternative: native Verilator install
 (https://veripool.org/guide/latest/install.html#installation)
 - Windows:
     - https://cygwin.com/install.html (follow description to install all packages)
@@ -52,3 +82,6 @@ To run TB with Verilator
     - Make sure that you provide VERILATOR_ROOT, 
     - Make sure that you added it to PATH
     - call `make clean all run VERI=1`
+
+  Setting `VERILATOR_ROOT` before `source sourceme` bypasses the container
+  wrapper and uses your native install instead.
