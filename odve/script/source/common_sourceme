@@ -1,6 +1,11 @@
 #!/bin/bash
 export ODVE_UVM=${ODVE}/uvm/uvm-1.1d/
 #export ODVE_UVM=${ODVE}/uvm/1800.2-2020-2.0/
+
+# SVUnit, vendored the same way UVM is above. Used by the per-unit
+# vrf/work/ut flow (agent-side ut/ folders with their own svunit.f
+# filelists) - not by the UVM regressions, which never reference it.
+export ODVE_SVUNIT=${ODVE}/svunit/svunit-3.38.1/
 export MS_HOME=$(dirname $(dirname $(which vsim)))
 export MS_GCC_PATH="${MS_HOME}/gcc-4.2.1-mingw32vc12"
 export PATH="${MS_GCC_PATH}/bin:${PATH}"
