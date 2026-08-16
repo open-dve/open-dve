@@ -24,14 +24,39 @@ BUILD_OPTS = \
 # -sv_lib. --vpi above pulls in the vpi_* runtime it calls into.
 DPI_SRCS = ${ODVE_UVM}/src/dpi/uvm_dpi.cc
 
+# Mirror common.mk: a named test goes to UVM as a plusarg, and each run gets
+# its own directory holding run.log. TESTNAME is deliberately NOT defaulted -
+# with no name the TB falls back to the run_test() call in top.sv, and any
+# name given is passed through so a bad one fails loudly here exactly as it
+# would under Questa (rather than silently running whatever top.sv picked).
+TESTNAME ?=
+ifneq ($(strip $(TESTNAME)),)
+	TEST_PLUSARG = +UVM_TESTNAME=$(TESTNAME)
+	RUN_DIR ?= $(TESTNAME)__run
+else
+	TEST_PLUSARG =
+	RUN_DIR ?= default__run
+endif
+
 clean:
 	rm -rf obj_dir
+
+rclean:
+	rm -rf ./*__run
+
+aclean: clean rclean
 
 all:
 	$(VERILATOR_ROOT)/bin/verilator $(BUILD_OPTS) -F $(VRF)/list/fl.f $(DPI_SRCS)
 
 run:
-	./obj_dir/$(BIN)
+	mkdir -p $(RUN_DIR)
+	cd $(RUN_DIR); ./../obj_dir/$(BIN) $(TEST_PLUSARG) $(RUN_OPTS) > run.log 2>&1; \
+		rc=$$?; cat run.log; \
+		if [ $$rc -ne 0 ]; then echo "*** $(BIN) exited $$rc"; exit $$rc; fi; \
+		if grep -qE '^UVM_(ERROR|FATAL) *: *[1-9]' run.log; then \
+			echo "*** UVM errors reported - see $(RUN_DIR)/run.log"; exit 1; \
+		fi
 
 version:
 	$(VERILATOR_ROOT)/bin/verilator --version

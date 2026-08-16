@@ -47,6 +47,10 @@ def main():
     parser.add_argument("-opts", "--opts", help="Output JSON file")
     parser.add_argument("-max_jobs", "--max_jobs", type=int, default=4, help="Max parallel jobs")
     parser.add_argument("-no_comp", "--no_comp", action="store_true", help="Skip the compile step and run the list against the existing build")
+    parser.add_argument("-ropts", "--ropts", default="",
+                        help='Extra make variables applied to BOTH the compile and the run jobs, '
+                             'e.g. -ropts="VERILATOR=1" (or "VERI=1") to run the list under '
+                             'Verilator instead of Questa')
 
     args = parser.parse_args()
     maxj = args.max_jobs
@@ -61,12 +65,17 @@ def main():
     l2j = list2json ()
     cmdsj = l2j.convert2j(rf.getlines())
     print(json.dumps(cmdsj, indent=4))
-    cmdsl = l2j.gencmd(cmdsj)
+    cmdsl = l2j.gencmd(cmdsj, args.ropts)
     print (cmdsl)
+
+    if args.ropts:
+        print(f"extra make args (-ropts): {args.ropts}")
 
     if not args.no_comp:
         jc = JobRunner(maxj)
-        comp_jobs = ["make clean all"]
+        # -ropts must reach the compile too, otherwise the list would be built
+        # with one simulator and run with another.
+        comp_jobs = [f"make clean all {args.ropts}".rstrip()]
         results=jc.run_jobs(comp_jobs)
         print (results)
         if any(job_failed(r) for r in results):
