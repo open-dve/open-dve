@@ -1,4 +1,4 @@
-.PHONY: all run clean version
+.PHONY: all run clean version lint
 
 VRF ?=$(PROJ)/vrf
 BIN=Vtop
@@ -48,6 +48,23 @@ aclean: clean rclean
 
 all:
 	$(VERILATOR_ROOT)/bin/verilator $(BUILD_OPTS) -F $(VRF)/list/fl.f $(DPI_SRCS)
+
+LINT_OPTS = \
+	--lint-only \
+	--timescale 1ns/1ps \
+	--timing \
+	-Wno-fatal \
+	--top-module $(TOP)
+
+# Parse and elaborate only, no C++: a syntax or type error surfaces in seconds
+# instead of after the multi-minute build. Same warning policy as `all`, so a
+# clean lint is exactly the front half of a clean build. Full output lands in
+# lint.log; the terminal gets the %Error blocks and the counts.
+lint:
+	@$(VERILATOR_ROOT)/bin/verilator $(LINT_OPTS) -F $(VRF)/list/fl.f > lint.log 2>&1; rc=$$?; \
+		grep -E -A3 '^%Error' lint.log; \
+		echo "lint: $$(grep '^%Error' lint.log | grep -vc 'Exiting due to') error(s), $$(grep -c '^%Warning' lint.log) warning(s) - full output in lint.log"; \
+		exit $$rc
 
 run:
 	mkdir -p $(RUN_DIR)

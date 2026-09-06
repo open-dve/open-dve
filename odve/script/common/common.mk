@@ -1,4 +1,4 @@
-.PHONY: clean all run auvm atb adut elab gcov
+.PHONY: clean all run auvm atb adut elab gcov lint
 
 PROJ ?=`pwd`
 
@@ -202,6 +202,14 @@ elab :
 
 ALL_CMD ?= prework preuvm auvm uvm_dpi predut adut pretb atb elib
 all :  $(ALL_CMD)
+
+# `make lint` is the fast front-of-build check on every path, whatever tool is
+# behind it. Questa has no separate linter, so its analyze steps stand in:
+# everything in ALL_CMD except the DPI build and the elaboration. Under
+# VERILATOR=1 the agent's Makefile.veri provides the same target as
+# `verilator --lint-only`.
+LINT_CMD ?= prework preuvm auvm predut adut pretb atb
+lint : $(LINT_CMD)
 
 elib : 
 	[ ! -d $(DEFAULT_RUN_DIR) ] && mkdir $(DEFAULT_RUN_DIR); \

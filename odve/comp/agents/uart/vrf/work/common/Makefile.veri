@@ -1,4 +1,4 @@
-.PHONY: all run clean
+.PHONY: all run clean version lint
 
 VRF ?=$(PROJ)/vrf
 BIN=Vtop
@@ -18,6 +18,19 @@ clean:
 
 all:
 	$(VERILATOR_ROOT)/bin/verilator $(BUILD_OPTS) -F $(VRF)/list/fl.f
+
+LINT_OPTS = \
+	--lint-only \
+	--timescale 1ns/1ps \
+	--timing
+
+# Parse and elaborate only, no C++ - seconds instead of minutes. Full output
+# in lint.log; terminal gets %Error blocks + counts.
+lint:
+	@$(VERILATOR_ROOT)/bin/verilator $(LINT_OPTS) -F $(VRF)/list/fl.f > lint.log 2>&1; rc=$$?; \
+		grep -E -A3 '^%Error' lint.log; \
+		echo "lint: $$(grep '^%Error' lint.log | grep -vc 'Exiting due to') error(s), $$(grep -c '^%Warning' lint.log) warning(s) - full output in lint.log"; \
+		exit $$rc
 	
 run:
 	./obj_dir/$(BIN)

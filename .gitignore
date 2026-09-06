@@ -9,5 +9,7 @@ odve/comp/agents/*/vrf/work/run/build/*
 odve/comp/agents/*/vrf/work/run/obj_dir/*
 # regress.py names RUN_DIR after the list entry, not <TESTNAME>__run
 odve/comp/agents/*/vrf/work/*/*/run.log
+# `make lint VERILATOR=1` keeps the full verilator --lint-only output here
+odve/comp/agents/*/vrf/work/*/lint.log
 odve/comp/agents/*/vrf/work/run/modelsim.ini
 odve/comp/agents/*/vrf/work/run/transcript
