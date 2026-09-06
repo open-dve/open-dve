@@ -6,5 +6,5 @@ endif
 ifndef VERI
 	include ./../common/Makefile
 else
-	include ./../common/Makefile_veri
+	include ./../common/Makefile.veri
 endif

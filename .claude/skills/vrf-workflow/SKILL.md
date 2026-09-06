@@ -5,7 +5,7 @@ description: Compile and simulate UVM/SystemVerilog agent code with BOTH Questa/
 
 # VRF compile / run / regress workflow
 
-This repo's verification agents are UVM environments where **compilation is filelist-driven, not directory-scanned**. Editing or adding a `.sv` file is not enough by itself — you must also (a) make sure it's referenced by the right filelist if it's new, and (b) actually run the build to know whether it compiles. There is no separate "syntax check" step; compiling *is* the check.
+This repo's verification agents are UVM environments where **compilation is filelist-driven, not directory-scanned**. Editing or adding a `.sv` file is not enough by itself — you must also (a) make sure it's referenced by the right filelist if it's new, and (b) actually run the build to know whether it compiles. `make lint` (Questa: analyze only; `VERILATOR=1`: `verilator --lint-only`) is the fast first check, but it stops short of elaboration/C++ — only a real compile proves the change builds.
 
 **Two simulators are supported and both must be checked.** Questa/ModelSim is the primary simulator; Verilator runs the same filelists via `VERILATOR=1`. They disagree often — Verilator is stricter (it has already caught real bugs Questa accepted, e.g. interface ports with no direction, and missing `+incdir+` for a package's own includes), while Questa supports constructs Verilator does not. **A change that compiles on one can fail on the other, so passing one is not evidence about the other.**
 
@@ -16,7 +16,7 @@ Each agent lives at `odve/comp/agents/<agent>/` (`apb` is the most complete and 
 - `run/` — everyday compile + simulate loop while iterating on code.
 - `check/` or `submit/` — full regression, run before pushing.
 - `mini/` — a smaller/faster regression subset.
-- `common/` — not run directly; holds the shared `Makefile`/`Makefile_veri`/`sourceme` the other variants include.
+- `common/` — not run directly; holds the shared `Makefile`/`Makefile.veri`/`sourceme` the other variants include.
 
 If a change is only in `odve/script/` or `odve/comp/common/` (shared framework code, not agent-specific), still run this workflow for at least one agent afterward — those files are `include`d by every agent's build.
 
@@ -24,7 +24,7 @@ If a change is only in `odve/script/` or `odve/comp/common/` (shared framework c
 
 Verilator support is per-agent, not automatic. An agent has it only if **both** exist:
 
-- `vrf/work/common/Makefile_veri` — the Verilator build rules, and
+- `vrf/work/common/Makefile.veri` — the Verilator build rules, and
 - `vrf/list/fl.f` — the single flattened filelist Verilator consumes (Questa uses the separate `fl_uvm.f`/`fl_dut.f`/`fl_tb.f`).
 
 Today that's `apb` (full UVM) and `uart` (non-UVM). If an agent lacks them, say so plainly rather than reporting a Verilator pass that never ran — and don't hand-roll a one-off `verilator` invocation as a substitute, since it won't match what the Makefile does.
@@ -38,7 +38,7 @@ source sourceme
 
 Exports `ODVE`, `ODVE_<AGENT>`, `PROJ`, and pulls in `odve/script/source/common_sourceme` (sets `ODVE_UVM`, locates `MS_HOME` from `vsim` on `PATH`, and points `VERILATOR_ROOT` at the containerised Verilator in `odve/script/verilator-docker/`).
 
-**Verilator prerequisite:** the container image must be present. If `make ... VERILATOR=1` complains that no engine or image is available, run `odve/script/verilator-docker/setup.sh` (`--check` to inspect without changing anything). It needs docker or podman, nothing else.
+**Verilator prerequisite:** one of three installs, all managed by `odve/script/verilator-docker/setup.sh` (`--check` reports which is active): the container image (docker/podman/apptainer), `--native` (conda-forge under `$HOME`, no root), or `--portable` (the tarball vendored in `prebuilt/`, no root, no network). A native/portable install writes `native.env`, which `sourceme` picks up automatically. If `make ... VERILATOR=1` complains, run `setup.sh --check` first and follow what it says.
 
 **Questa prerequisite:** `vsim` on `PATH`. If it isn't, say Questa isn't available rather than guessing at results.
 
@@ -60,13 +60,16 @@ make all
 ```
 Runs `prework preuvm auvm uvm_dpi predut adut pretb atb elib` — compiles UVM, DUT and TB into separate Questa libraries (`vlog`), then elaborates (`vopt`). **Read the actual output**; each `vlog`/`vopt` step prints `Errors: N, Warnings: M` and any nonzero error count is a real failure.
 
-`auvm`/`adut`/`atb` are the **analyze** steps (`vlog`) for the UVM, DUT and TB layers, runnable individually if you only touched one layer (e.g. `make atb` after a testbench-only edit). `elib`/`elab` is the separate **elaborate** step (`vopt`) that links them. A file can analyze cleanly yet fail to elaborate (e.g. a missing cross-package class reference), so don't treat "analyze passed" as "compilation is ok."
+`make lint` runs just the analyze steps for all three layers (`LINT_CMD` in `common.mk`: `ALL_CMD` minus `uvm_dpi` and `elib`) — the Questa counterpart of the Verilator lint below, and the quickest first check after an edit. `auvm`/`adut`/`atb` are those **analyze** steps (`vlog`) for the UVM, DUT and TB layers, runnable individually if you only touched one layer (e.g. `make atb` after a testbench-only edit). `elib`/`elab` is the separate **elaborate** step (`vopt`) that links them. A file can analyze cleanly yet fail to elaborate (e.g. a missing cross-package class reference), so don't treat "analyze passed" as "compilation is ok."
 
-**Verilator:**
+**Verilator — lint first, then build:**
 ```bash
-make all VERILATOR=1        # VERI=1 is an equivalent legacy spelling
+make lint VERILATOR=1       # seconds: parse + elaborate only, no C++
+make all VERILATOR=1        # minutes: the real build (VERI=1 is an equivalent legacy spelling)
 ```
-One step: elaborates and compiles the generated C++ into `obj_dir/Vtop`. It is slower than Questa (several minutes — it compiles all of UVM through g++), so expect the wait and don't kill it early. Warnings are non-fatal by design (`-Wno-fatal`), because the vendored UVM 1.1d and the existing TB trip width/pin warnings that are not worth failing on — so **read the output for `%Error:` lines specifically**; a nonzero exit is the reliable signal.
+`make lint` is `verilator --lint-only` over the same `fl.f` and the same warning policy as `all`, so it is exactly the front half of the build: a typo, an undeclared identifier, a missing `+incdir+`, a width or port mismatch all surface here in a few seconds. The terminal prints each `%Error` block and a `lint: N error(s), M warning(s)` line; the full output is in `work/<variant>/lint.log`. **Loop on lint until it reports 0 errors before spending minutes on `make all`** — but a clean lint is not a passing build (nothing is compiled or run), so it never replaces the steps below.
+
+`make all VERILATOR=1` is one step: elaborates and compiles the generated C++ into `obj_dir/Vtop`. It is slower than Questa (several minutes — it compiles all of UVM through g++), so expect the wait and don't kill it early. Warnings are non-fatal by design (`-Wno-fatal`), because the vendored UVM 1.1d and the existing TB trip width/pin warnings that are not worth failing on — so **read the output for `%Error:` lines specifically**; a nonzero exit is the reliable signal.
 
 If you added or removed a source file (not just edited one), check it's in the right filelist or it silently won't compile:
 - Agent-side (`src/`, `item/`, `seq/`, `intf/`) → `odve/comp/agents/<agent>/list/*.f`.
@@ -129,7 +132,7 @@ A hard sequence, not a suggestion — SystemVerilog breaks silently far more oft
 **Before `git commit`** (any commit touching `.sv`/`.f`/`Makefile`/regress scripts):
 1. Questa: analyze the changed layer(s) — `make atb` / `make adut` / `make auvm`, or `make auvm adut atb`. Fix every nonzero `Errors:` count.
 2. Questa: `make all` (includes `elib`) to prove it elaborates too.
-3. Verilator: `make all VERILATOR=1` — for any agent that supports it (see §0). This is the step most likely to surface a real defect, since Verilator is the stricter of the two.
+3. Verilator: `make lint VERILATOR=1` until 0 errors, then `make all VERILATOR=1` — for any agent that supports it (see §0). This is the step most likely to surface a real defect, since Verilator is the stricter of the two; lint gets you the verdict in seconds, `all` proves it.
 
 **Before `git push`**:
 4. `./regress.py submit` (Questa) **and** `./regress.py submit -ropts="VERILATOR=1"` (Verilator). Both must be clean. Fix and re-run the **full** list on both before pushing; never push on a partial regression or on one simulator's result alone.

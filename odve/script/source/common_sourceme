@@ -11,11 +11,16 @@ export MS_GCC_PATH="${MS_HOME}/gcc-4.2.1-mingw32vc12"
 export PATH="${MS_GCC_PATH}/bin:${PATH}"
 
 ##
-# Verilator: defaults to the Docker-wrapped install vendored in
-# script/verilator-docker/ (needs `docker` on PATH, nothing else).
-# Set VERILATOR_ROOT yourself beforehand (e.g. a native/Cygwin build) to
-# bypass Docker and use that instead.
+# Verilator: defaults to the container-wrapped install vendored in
+# script/verilator-docker/ (docker, podman or apptainer on PATH). A native
+# install made by `script/verilator-docker/setup.sh --native` leaves its
+# paths in native.env there and is used when nothing else is set. Set
+# VERILATOR_ROOT yourself beforehand (e.g. your own native/Cygwin build)
+# to override both.
 #export VERILATOR_ROOT=/home/viktor/verilator/verilator
 #export PATH="/cygdrive/c/cygwin64/bin:$PATH"
+if [ -z "${VERILATOR_ROOT:-}" ] && [ -r "${ODVE}/script/verilator-docker/native.env" ]; then
+    source "${ODVE}/script/verilator-docker/native.env"
+fi
 export VERILATOR_ROOT="${VERILATOR_ROOT:-${ODVE}/script/verilator-docker}"
 export PATH="$VERILATOR_ROOT/bin:$PATH"
