@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Container-backed Verilator, used as $(VERILATOR_ROOT)/bin/verilator by
-# vrf/work/common/Makefile_veri when no native Verilator install is on PATH.
+# vrf/work/common/Makefile.veri when no native Verilator install is on PATH.
 #
 # Mounts the repo root (derived from $ODVE, which every odve sourceme
 # script exports) at the identical path inside the container, so absolute

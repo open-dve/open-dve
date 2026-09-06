@@ -16,7 +16,7 @@ Each agent lives at `odve/comp/agents/<agent>/` (`apb` is the most complete and 
 - `run/` — everyday compile + simulate loop while iterating on code.
 - `check/` or `submit/` — full regression, run before pushing.
 - `mini/` — a smaller/faster regression subset.
-- `common/` — not run directly; holds the shared `Makefile`/`Makefile_veri`/`sourceme` the other variants include.
+- `common/` — not run directly; holds the shared `Makefile`/`Makefile.veri`/`sourceme` the other variants include.
 
 If a change is only in `odve/script/` or `odve/comp/common/` (shared framework code, not agent-specific), still run this workflow for at least one agent afterward — those files are `include`d by every agent's build.
 
@@ -24,7 +24,7 @@ If a change is only in `odve/script/` or `odve/comp/common/` (shared framework c
 
 Verilator support is per-agent, not automatic. An agent has it only if **both** exist:
 
-- `vrf/work/common/Makefile_veri` — the Verilator build rules, and
+- `vrf/work/common/Makefile.veri` — the Verilator build rules, and
 - `vrf/list/fl.f` — the single flattened filelist Verilator consumes (Questa uses the separate `fl_uvm.f`/`fl_dut.f`/`fl_tb.f`).
 
 Today that's `apb` (full UVM) and `uart` (non-UVM). If an agent lacks them, say so plainly rather than reporting a Verilator pass that never ran — and don't hand-roll a one-off `verilator` invocation as a substitute, since it won't match what the Makefile does.

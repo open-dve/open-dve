@@ -2,7 +2,7 @@
 
 Runs Verilator from a container image so no native Verilator/gcc/flex/bison
 toolchain has to be installed on the host. Used by the agents' `VERILATOR=1`
-build path (`vrf/work/common/Makefile_veri`).
+build path (`vrf/work/common/Makefile.veri`).
 
 Works with **docker**, **podman**, or **Apptainer** (formerly Singularity),
 on **WSL**, **native Linux**, **macOS**, and **Git Bash on Windows** (WSL is
