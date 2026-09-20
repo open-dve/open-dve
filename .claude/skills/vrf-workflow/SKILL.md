@@ -48,7 +48,7 @@ Check, don't assume — and report per-simulator rather than collapsing to one v
 
 - **WSL:** Verilator works. Questa often does **not**, even when `vsim` resolves: a Windows ModelSim binary cannot read WSL paths, and the build dies with `Failed to open -f file "/mnt/c/..."`. Questa needs Windows-native `C:/...` paths, i.e. run it from **Git Bash on Windows**, not WSL.
 - **Git Bash on Windows:** Questa works. Verilator works if Docker Desktop is running.
-- **Native Linux:** Verilator works; Questa works if a Linux Questa is installed.
+- **Native Linux:** Verilator works; Questa works if a Linux ModelSim/Questa is installed (`vsim` on `PATH`) — the DPI step then uses ModelSim's bundled `gcc-*-linux` automatically.
 
 If you can only run one simulator, run it, then **explicitly state that the other was not verified and why**. Never imply both passed when only one ran.
 
@@ -58,9 +58,9 @@ If you can only run one simulator, run it, then **explicitly state that the othe
 ```bash
 make all
 ```
-Runs `prework preuvm auvm uvm_dpi predut adut pretb atb elib` — compiles UVM, DUT and TB into separate Questa libraries (`vlog`), then elaborates (`vopt`). **Read the actual output**; each `vlog`/`vopt` step prints `Errors: N, Warnings: M` and any nonzero error count is a real failure.
+Runs `prework preuvm auvm uvm_dpi predut adut pretb atb elib` — compiles UVM, DUT and TB into separate Questa libraries (`vlog`), builds the UVM DPI shared lib (`uvm_dpi`: `build/uvm_dpi.o` then `.dll`/`.so`, with ModelSim's bundled 32-bit gcc — branch picked by `HOST_OS`, see `common.mk`), and maps the libraries into `default__run/` (`elib`). It does **not** elaborate — `vsim` does that at `make run`, so only `make all run TESTNAME=<t>` proves a Questa change. **Read the actual output**; each `vlog` step prints `Errors: N, Warnings: M` and any nonzero error count is a real failure, and a failed `g++` in the `uvm_dpi` step is a failure too.
 
-`make lint` runs just the analyze steps for all three layers (`LINT_CMD` in `common.mk`: `ALL_CMD` minus `uvm_dpi` and `elib`) — the Questa counterpart of the Verilator lint below, and the quickest first check after an edit. `auvm`/`adut`/`atb` are those **analyze** steps (`vlog`) for the UVM, DUT and TB layers, runnable individually if you only touched one layer (e.g. `make atb` after a testbench-only edit). `elib`/`elab` is the separate **elaborate** step (`vopt`) that links them. A file can analyze cleanly yet fail to elaborate (e.g. a missing cross-package class reference), so don't treat "analyze passed" as "compilation is ok."
+`make lint` runs just the analyze steps for all three layers (`LINT_CMD` in `common.mk`: `ALL_CMD` minus `uvm_dpi` and `elib`) — the Questa counterpart of the Verilator lint below, and the quickest first check after an edit. `auvm`/`adut`/`atb` are those **analyze** steps (`vlog`) for the UVM, DUT and TB layers, runnable individually if you only touched one layer (e.g. `make atb` after a testbench-only edit). Elaboration happens inside `vsim` at `make run` (the `elab`/`vopt` target in `common.mk` is unused). A file can analyze cleanly yet fail to elaborate (e.g. a missing cross-package class reference), so don't treat "analyze passed" as "compilation is ok" — run a test.
 
 **Verilator — lint first, then build:**
 ```bash
@@ -117,9 +117,9 @@ source sourceme
 
 `-ropts` appends make variables to **both** the compile job and every run job, so the list is built and run with the same simulator. (Omitting it from the compile would build with Questa and run with Verilator.) Anything else make accepts works too, e.g. `-ropts="VERILATOR=1 NPROC=8"`.
 
-`regress.py <name>` reads `work/rlist/<name>.list` (each line names a run with its own `TESTNAME`/`COMP_DIR`/`RUN_OPTS` overrides) and drives `odve/script/regress/regress.py`, running jobs in parallel (default 4, `-max_jobs` to change). `submit` is the pre-push list; confirm which list the user means if unclear, and check `work/rlist/` before inventing a name. `-no_comp` reuses an existing build — useful when iterating, but never for the final pre-push run.
+`regress.py <name>` reads `work/rlist/<name>.list` (each line names a run with its own `TESTNAME`/`COMP_DIR`/`RUN_OPTS` overrides) and drives `odve/script/regress/regress.py`, running jobs in parallel (default 4, `-max_jobs`/`-j` to change). `submit` is the pre-push list; confirm which list the user means if unclear, and check `work/rlist/` before inventing a name. `-no_comp` reuses an existing build — useful when iterating, but never for the final pre-push run.
 
-Read the per-job results, not just the exit code: `regress.py` fails the run if any job returns nonzero **or** reports `UVM_ERROR`/`UVM_FATAL`, and prints each job's captured output. Confirm every job in the list actually ran.
+As each run finishes it prints a `[k/N] <name>: PASS|FAIL (<secs>) <reason>` line, the last `UVM_ERROR`/`UVM_FATAL` message if any, the path to its `run.log`, and the log itself (`-quiet` suppresses the log, `-tail N` trims it); a summary table follows once all runs are done. The verdict is taken from that run's own `run.log`: make must exit 0, the UVM report summary must exist (missing = the simulation never finished = FAIL), and `UVM_ERROR`/`UVM_FATAL` must both be 0. Every run gets `RUN_OPTS+=+UVM_MAX_QUIT_COUNT=1` so a simulation stops at its first UVM error; to let it run to the end (e.g. to see all mismatches at once) pass your own value and the default is not added — `-ropts="RUN_OPTS+=+UVM_MAX_QUIT_COUNT=0"` — and any other UVM plusarg goes the same way, `-ropts="RUN_OPTS+=+UVM_VERBOSITY=UVM_HIGH"` (combine with the simulator switch as `-ropts="VERILATOR=1 RUN_OPTS+=..."`). Agent Makefiles add their own run switches with `override RUN_OPTS += ...` so a command-line `RUN_OPTS` doesn't discard them. Read the per-run status lines and the summary table, not just the exit code, and confirm every job in the list actually ran.
 
 Regression output lands in `RUN_DIR` named after the list entry (e.g. `apb_read/`), not `<TESTNAME>__run/`.
 
@@ -131,7 +131,7 @@ A hard sequence, not a suggestion — SystemVerilog breaks silently far more oft
 
 **Before `git commit`** (any commit touching `.sv`/`.f`/`Makefile`/regress scripts):
 1. Questa: analyze the changed layer(s) — `make atb` / `make adut` / `make auvm`, or `make auvm adut atb`. Fix every nonzero `Errors:` count.
-2. Questa: `make all` (includes `elib`) to prove it elaborates too.
+2. Questa: `make all run TESTNAME=<a test from vrf/tb/tests>` — `make all` alone never elaborates; the `vsim` run does.
 3. Verilator: `make lint VERILATOR=1` until 0 errors, then `make all VERILATOR=1` — for any agent that supports it (see §0). This is the step most likely to surface a real defect, since Verilator is the stricter of the two; lint gets you the verdict in seconds, `all` proves it.
 
 **Before `git push`**:
