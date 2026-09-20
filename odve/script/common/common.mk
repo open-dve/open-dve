@@ -15,6 +15,10 @@ endif
 
 RUN_PATH=$(PWD)/$(RUN_DIR)
 
+# Simulator run switches and plusargs. Given on the make command line by
+# regress lists (RUN_OPTS+='+arg=1') and by regress.py (+UVM_MAX_QUIT_COUNT),
+# so an agent Makefile must add its own with `override RUN_OPTS += ...`, or
+# make drops the makefile's value in favour of the command line's.
 RUN_OPTS +=
 
 MK_RUN_OPTS+=+UVM_TESTNAME=$(TESTNAME) \
@@ -101,11 +105,25 @@ mkdir_run :
 	[ ! -d $(RUN_DIR) ] && mkdir $(RUN_DIR) || exit 0;
 
 
+###UVM DPI. Questa loads it at run time (-sv_lib); Verilator instead links
+# the same source straight into Vtop (Makefile.veri). ModelSim Starter is a
+# 32-bit tool on both OSes, so the library must be 32-bit too, built with the
+# gcc ModelSim ships (MS_GCC_PATH, from common_sourceme) rather than the
+# host's. Two branches, picked by HOST_OS:
+#   MS_WIN32   Windows (Git Bash): uvm_dpi.dll, linked with win32aloem/mtipli.dll
+#   MS_LINUX32 Linux:              uvm_dpi.so, -m32, linked with linuxaloem/libmtipli.so
+# Override UVM_DPI_MODE on the command line to force one.
+ifeq ($(OS),Windows_NT)
+HOST_OS ?= windows
+else
+HOST_OS ?= $(shell uname -s | tr A-Z a-z)
+endif
+
 UVM_DPI_SRC += $(ODVE_UVM)/src/dpi/uvm_dpi.cc
+# uvm_dpi.cc #includes the other dpi sources, so the object depends on all of them
+UVM_DPI_DEPS = $(wildcard $(ODVE_UVM)/src/dpi/*.c $(ODVE_UVM)/src/dpi/*.cc $(ODVE_UVM)/src/dpi/*.h)
 
 UVM_DPI_INC += -I$(ODVE_UVM)/src/dpi -I$(MS_HOME)/include 
-
-#-L$(MS_HOME)/modelsim_lib
 
 UVM_C_DEFS  += -DQUESTA
 
@@ -113,25 +131,49 @@ UVM_CFLAGS   = $(UVM_DPI_INC) $(UVM_C_DEFS)
 
 UVM_DPI_RECOMPILE ?= 1
 
+ifeq ($(HOST_OS), windows)
 UVM_DPI_MODE ?= MS_WIN32
+else
+UVM_DPI_MODE ?= MS_LINUX32
+endif
+
+UVM_DPI_OBJ = uvm_dpi.o
+ifeq ($(UVM_DPI_MODE), MS_WIN32)
+UVM_DPI_GCC    ?= $(GCC)
+UVM_DPI_SHARED  = uvm_dpi.dll
+UVM_DPI_CFLAGS  =
+UVM_DPI_LDFLAGS = -shared
+UVM_DPI_LIBS    = $(MS_HOME)/win32aloem/mtipli.dll
+else ifeq ($(UVM_DPI_MODE), MS_LINUX32)
+UVM_DPI_GCC    ?= $(if $(MS_GCC_PATH),$(MS_GCC_PATH)/bin/g++,$(GCC))
+UVM_DPI_SHARED  = uvm_dpi.so
+UVM_DPI_CFLAGS  = -m32 -fPIC
+UVM_DPI_LDFLAGS = -m32 -shared
+UVM_DPI_LIBS    = -L$(MS_HOME)/linuxaloem -lmtipli
+else
+$(error unknown UVM_DPI_MODE '$(UVM_DPI_MODE)' (MS_WIN32 or MS_LINUX32))
+endif
 
 ifeq ($(UVM_DPI_RECOMPILE), 1) 
-	ifeq ($(UVM_DPI_MODE), MS_WIN32)
-		UVM_DPI_TARG    = uvm_dpi_o uvm_dpi_so
-		UVM_DPI_OBJ     = uvm_dpi.o
-		UVM_DPI_SHARED  = uvm_dpi.dll
-	endif
+UVM_DPI_TARG    = uvm_dpi_so
 endif  
 
 UVM_DPI_C_RUN_OPTS = -sv_lib ./../$(COMP_DIR)/uvm_dpi
 
+.PHONY: uvm_dpi uvm_dpi_o uvm_dpi_so
 uvm_dpi : $(UVM_DPI_TARG) 
 
-uvm_dpi_o : 
-	$(GCC) -c $(UVM_CFLAGS) $(UVM_DPI_SRC) -o $(COMP_DIR)/$(UVM_DPI_OBJ) ; 
+# The object is a real file target: rebuilt only when a dpi source changed.
+$(COMP_DIR)/$(UVM_DPI_OBJ) : $(UVM_DPI_SRC) $(UVM_DPI_DEPS)
+	[ -d $(COMP_DIR) ] || mkdir $(COMP_DIR)
+	$(UVM_DPI_GCC) -c $(UVM_DPI_CFLAGS) $(UVM_CFLAGS) $(UVM_DPI_SRC) -o $@
 
-uvm_dpi_so : 
-	$(GCC) -shared $(COMP_DIR)/$(UVM_DPI_OBJ) -o $(COMP_DIR)/$(UVM_DPI_SHARED) $(MS_HOME)/win32aloem/mtipli.dll 
+uvm_dpi_o : $(COMP_DIR)/$(UVM_DPI_OBJ)
+
+$(COMP_DIR)/$(UVM_DPI_SHARED) : $(COMP_DIR)/$(UVM_DPI_OBJ)
+	$(UVM_DPI_GCC) $(UVM_DPI_LDFLAGS) $< -o $@ $(UVM_DPI_LIBS)
+
+uvm_dpi_so : $(COMP_DIR)/$(UVM_DPI_SHARED)
 
 
 clean : 
@@ -208,7 +250,9 @@ all :  $(ALL_CMD)
 # everything in ALL_CMD except the DPI build and the elaboration. Under
 # VERILATOR=1 the agent's Makefile.veri provides the same target as
 # `verilator --lint-only`.
-LINT_CMD ?= prework preuvm auvm predut adut pretb atb
+# Derived from ALL_CMD so an agent that trims ALL_CMD (uart: no UVM layer)
+# gets a matching lint instead of a vlog run over a filelist it doesn't have.
+LINT_CMD ?= $(filter-out uvm_dpi elib,$(ALL_CMD))
 lint : $(LINT_CMD)
 
 elib : 

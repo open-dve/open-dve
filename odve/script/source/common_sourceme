@@ -6,9 +6,23 @@ export ODVE_UVM=${ODVE}/uvm/uvm-1.1d/
 # vrf/work/ut flow (agent-side ut/ folders with their own svunit.f
 # filelists) - not by the UVM regressions, which never reference it.
 export ODVE_SVUNIT=${ODVE}/svunit/svunit-3.38.1/
-export MS_HOME=$(dirname $(dirname $(which vsim)))
-export MS_GCC_PATH="${MS_HOME}/gcc-4.2.1-mingw32vc12"
-export PATH="${MS_GCC_PATH}/bin:${PATH}"
+# Questa/ModelSim root, from vsim on PATH (empty if Questa isn't installed).
+# MS_GCC_PATH is the gcc ModelSim ships, used by common.mk to build the UVM
+# DPI library as a 32-bit object to match the 32-bit Starter Edition.
+_vsim=$(command -v vsim 2>/dev/null)
+export MS_HOME=${_vsim:+$(dirname "$(dirname "$_vsim")")}
+case "$(uname -s)" in
+    Linux*)
+        # gcc-<ver>-linux: i686 toolchain. Deliberately NOT put on PATH - it
+        # would shadow the host g++ that Verilator's C++ build relies on.
+        export MS_GCC_PATH="$(ls -d "${MS_HOME}"/gcc-*-linux 2>/dev/null | head -1)"
+        ;;
+    *)
+        export MS_GCC_PATH="${MS_HOME}/gcc-4.2.1-mingw32vc12"
+        export PATH="${MS_GCC_PATH}/bin:${PATH}"
+        ;;
+esac
+unset _vsim
 
 ##
 # Verilator: defaults to the container-wrapped install vendored in
