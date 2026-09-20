@@ -428,7 +428,9 @@ cat > "$AGENT/vrf/work/common/Makefile" <<'EOF'
 
 DEF=
 
-RUN_OPTS += -batch
+# `override`: RUN_OPTS also arrives on the make command line (regress lists,
+# regress.py), which would otherwise discard this -batch and open the GUI.
+override RUN_OPTS += -batch
 
 COMP_OPTS+=
 
@@ -465,12 +467,12 @@ EOF
 include ./../common/Makefile
 EOF
     cat > "$AGENT/vrf/work/$variant/regress.py" <<'EOF'
-#!python
+#!/usr/bin/env python3
 import subprocess
 import sys
 import os
 odve=os.environ["ODVE"]
-subprocess.call(["python", f"{odve}/script/regress/regress.py"] + sys.argv[1:])
+subprocess.call([sys.executable, f"{odve}/script/regress/regress.py"] + sys.argv[1:])
 EOF
     chmod +x "$AGENT/vrf/work/$variant/sourceme" "$AGENT/vrf/work/$variant/regress.py"
 done

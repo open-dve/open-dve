@@ -13,3 +13,7 @@ odve/comp/agents/*/vrf/work/*/*/run.log
 odve/comp/agents/*/vrf/work/*/lint.log
 odve/comp/agents/*/vrf/work/run/modelsim.ini
 odve/comp/agents/*/vrf/work/run/transcript
+# copied into each run dir by `prerun` (Questa): regress.py names the dir after the list entry
+odve/comp/agents/*/vrf/work/*/*/modelsim.ini
+odve/comp/agents/*/vrf/work/*/*/uvm_dpi.*
+odve/comp/agents/*/vrf/work/*/*/transcript

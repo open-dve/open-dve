@@ -4,10 +4,13 @@ class readlist:
         self.data = []
 
     def readfile(self):
+        """Keep the meaningful lines of a .list file: blanks and '#' comments are dropped."""
         try:
             with open(self.file_path, 'r') as file:
                 for line in file:
-                    self.data.append(line.strip())
+                    line = line.strip()
+                    if line and not line.startswith("#"):
+                        self.data.append(line)
 
         except FileNotFoundError:
             print(f"File not found: {self.file_path}")
@@ -20,4 +23,4 @@ class readlist:
             print (item)
 
     def getlines(self):
-        return self.data 
+        return self.data

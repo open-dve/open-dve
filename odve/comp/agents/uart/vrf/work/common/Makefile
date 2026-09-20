@@ -2,7 +2,9 @@
 
 DEF=
 
-RUN_OPTS += -batch
+# `override`: RUN_OPTS also arrives on the make command line (regress lists,
+# regress.py), which would otherwise discard this -batch and open the GUI.
+override RUN_OPTS += -batch
 
 #FL_TB=$(ODVE)/comp/agents/apb/vrf/list/fl_tb.f
 #FL_UVM=$(ODVE)/comp/agents/apb/vrf/list/fl_uvm.f
