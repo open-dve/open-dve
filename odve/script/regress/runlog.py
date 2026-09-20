@@ -1,0 +1,67 @@
+"""Verdict of one regression run, read from its own run.log rather than from
+make's exit code: `vsim -batch` exits 0 even when the test hit UVM_ERROR /
+UVM_FATAL, so the UVM report summary at the end of the log is the only
+trustworthy signal. Questa prefixes every logged line with "# ", Verilator
+does not -- both shapes are accepted."""
+import os
+import re
+from dataclasses import dataclass
+
+# "UVM_ERROR :    3" -- a line of the report summary (note the colon).
+_SUMMARY_RE = re.compile(r"^[#\s]*UVM_(ERROR|FATAL)\s*:\s*(\d+)\s*$", re.M)
+# "UVM_ERROR file.sv(42) @ 100: path [ID] text" -- an actual message line.
+_MESSAGE_RE = re.compile(r"^[#\s]*(UVM_(?:ERROR|FATAL)\s+(?!:).*?)\s*$", re.M)
+
+
+@dataclass
+class RunStatus:
+    passed: bool
+    reason: str                 # one-line explanation, printed next to PASS/FAIL
+    errors: int = None          # UVM_ERROR count from the summary, None if no summary
+    fatals: int = None
+    last_error: str = None      # text of the last UVM_ERROR/UVM_FATAL message seen
+
+    @property
+    def verdict(self):
+        return "PASS" if self.passed else "FAIL"
+
+
+def parse_run_log(path, returncode=0):
+    """Judge a run: make must have exited 0, the log must exist and end with a
+    UVM report summary, and that summary must count zero errors and fatals.
+    The last error message in the log is kept for the status line (with
+    +UVM_MAX_QUIT_COUNT=1 it is the one that stopped the simulation)."""
+    if returncode != 0:
+        status = RunStatus(False, f"make exited {returncode}")
+    elif not os.path.isfile(path):
+        return RunStatus(False, f"no run.log at {path}")
+    else:
+        status = None
+
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            text = f.read()
+    except OSError as e:
+        return RunStatus(False, f"cannot read {path}: {e}")
+
+    messages = _MESSAGE_RE.findall(text)
+    last_error = messages[-1] if messages else None
+
+    counts = {}
+    for sev, n in _SUMMARY_RE.findall(text):
+        counts[sev] = int(n)        # last summary wins if there are several
+    errors = counts.get("ERROR")
+    fatals = counts.get("FATAL")
+
+    if status is not None:          # make already failed; enrich with what the log says
+        status.errors, status.fatals, status.last_error = errors, fatals, last_error
+        return status
+    if errors is None and fatals is None:
+        return RunStatus(False, "no UVM report summary in log (simulation did not finish)",
+                         last_error=last_error)
+    errors = errors or 0
+    fatals = fatals or 0
+    if errors or fatals:
+        return RunStatus(False, f"UVM_ERROR={errors} UVM_FATAL={fatals}",
+                         errors, fatals, last_error)
+    return RunStatus(True, f"UVM_ERROR=0 UVM_FATAL=0", errors, fatals, last_error)

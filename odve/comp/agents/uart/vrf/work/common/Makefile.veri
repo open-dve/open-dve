@@ -33,7 +33,7 @@ lint:
 		exit $$rc
 	
 run:
-	./obj_dir/$(BIN)
+	./obj_dir/$(BIN) $(RUN_OPTS)
 
 version:
 	$(VERILATOR_ROOT)/bin/verilator --version

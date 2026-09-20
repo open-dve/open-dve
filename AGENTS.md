@@ -21,7 +21,7 @@ make aclean all run
 ```
 
 - `sourceme` exports `ODVE`, the agent-specific path var (e.g. `ODVE_APB`), and `PROJ` as absolute paths, then sources `script/source/common_sourceme`, which sets `ODVE_UVM` (defaults to the vendored `uvm/uvm-1.1d/`; `uvm/1800.2-2020-2.0/` is available but commented out) and locates `MS_HOME` from `vsim` on `PATH`.
-- `make all` runs `prework preuvm auvm uvm_dpi predut adut pretb atb elib` — compiles UVM, DUT, and TB into **separate Questa libraries** (`work/uvm`, `work/dut`, `work/tb`), then elaborates with `vopt ... -L dut -L uvm`.
+- `make all` runs `prework preuvm auvm uvm_dpi predut adut pretb atb elib` — compiles UVM, DUT, and TB into **separate Questa libraries** (`build/uvm`, `build/dut`, `build/tb`), then `elib` maps them into `default__run/`. It does **not** elaborate: the `elab` (`vopt`) target is defined but unused, so elaboration only happens inside `vsim` at `make run`.
 - `make run` invokes `vsim tb.$(TOP) ... +UVM_TESTNAME=$(TESTNAME)` (default `TESTNAME=base_test`; override with `make TESTNAME=<name> run`).
 - `make clean`/`make aclean` remove build artifacts; `make rclean` removes `*__run` result directories.
 - Each agent's `vrf/work/<variant>/Makefile` (`run`, `check`, `mini`, `common`) `include`s `work/common/Makefile`, which includes the single shared `script/common/common.mk` used by every agent. Prefer changing `script/common/common.mk` for framework-wide build/run behavior, and an agent's `work/common/Makefile` for agent-local overrides.
@@ -37,7 +37,9 @@ source sourceme
 `regress.py` (per-agent copy, thin wrapper) forwards to `script/regress/regress.py`, which:
 - parses `../rlist/<list-name>.list` via `readlist.py` (each line names a run with `TESTNAME`/`COMP_DIR`/`RUN_OPTS` overrides, e.g. `run_name1 : TESTNAME=t1 COMP_DIR=d2 RUN_OPTS+='+arg1=1'`),
 - converts it to job commands via `list2json.py`,
-- executes jobs in parallel via `jobrunner.py` (`-max_jobs`, default 4).
+- executes jobs in parallel via `jobrunner.py` (`-max_jobs`/`-j`, default 4), printing each run's status line and `run.log` the moment that run finishes, then a summary table once all are done.
+
+Each run's verdict comes from its own `<RUN_DIR>/run.log` (`runlog.py`): make must exit 0, the UVM report summary must be present, and `UVM_ERROR`/`UVM_FATAL` must both be 0; the last `UVM_ERROR`/`UVM_FATAL` message line is shown next to a failure. Every run gets `RUN_OPTS+=+UVM_MAX_QUIT_COUNT=1` (stop at the first UVM error) — `RUN_OPTS` is the Makefiles' run-switch variable, reaching `vsim` and the Verilator binary alike — unless the list entry or `-ropts` already carries `+UVM_MAX_QUIT_COUNT`, in which case that value is used instead. Other UVM plusargs go the same way: `-ropts="RUN_OPTS+=+UVM_VERBOSITY=UVM_HIGH"`. Because `RUN_OPTS` arrives on the make command line, agent Makefiles must add their own switches with `override RUN_OPTS += ...` (as `-batch` is), or make discards them. `-quiet` prints only status lines; `-tail N` trims each log.
 
 `script/regress/example.list` and `script/regress/comp.cfg` are references for the list/config format. Any `work/<variant>` folder has its own `regress.py`/`sourceme`, so the list name doesn't need to match the folder — e.g. `apb`'s `work/rlist/submit.list` (pre-push regression, run as `./regress.py submit` from `work/run` or `work/mini`) sits alongside `mini.list`.
 
@@ -48,7 +50,7 @@ source sourceme
 - `comp/agents/<protocol>/` — one UVM agent per protocol: `apb`, `axi`, `ahb`, `jtag`, `spi`, `uart`. **`apb` is the most complete and is the best reference implementation** to copy patterns from when building out another agent.
 - `comp/common/` — shared base classes (`base/odve_common_base_item.sv`) and macros (`macro/odve_macro.sv`, e.g. `` `odve_rand(obj) `` calls `obj.user_randomize()`).
 - `script/common/common.mk` — the single shared Make include behind every agent's `vrf/work/*/Makefile`. Defines the `prework/preuvm/auvm/predut/adut/pretb/atb/elib/run/clean/rclean/aclean` targets and the `FL_TB`/`FL_UVM`/`FL_DUT`/`TOP`/`TESTNAME`/`RUN_DIR`/`COMP_DIR` variables.
-- `script/source/common_sourceme` — sets `ODVE_UVM`, locates the Questa install (`MS_HOME`) from `vsim` on `PATH`, and points `VERILATOR_ROOT` at the containerised Verilator in `script/verilator-docker/` (preset `VERILATOR_ROOT` yourself to use a native install instead).
+- `script/source/common_sourceme` — sets `ODVE_UVM`, locates the Questa install (`MS_HOME`) from `vsim` on `PATH` plus its bundled gcc (`MS_GCC_PATH`: MinGW on Windows, `gcc-*-linux` on Linux), and points `VERILATOR_ROOT` at the containerised Verilator in `script/verilator-docker/` (preset `VERILATOR_ROOT` yourself to use a native install instead).
 - `script/verilator-docker/` — containerised Verilator: `setup.sh` (one-time image fetch, with OS/engine detection and an offline `--load` path) and `bin/verilator` (docker/podman shim used as `$VERILATOR_ROOT/bin/verilator`).
 - `script/regress/` — the regression runner: `regress.py` (entry point), `readlist.py` (parses `*.list` files), `list2json.py` (converts parsed runs to job commands), `jobrunner.py` (parallel job execution), `list2json.py`.
 - `script/schedule/`, `script/pdf/pdf2req/` — scheduling and requirements-doc tooling (early/placeholder).
@@ -77,7 +79,9 @@ New source files must be added to the correct `list/*.f` (agent) or `vrf/list/fl
 
 ### Compilation model
 
-Questa compilation is split into separate libraries per layer — `uvm`, `dut`, `tb` — then linked at elaboration (`vopt ... -L dut -L uvm`) and simulated (`vsim tb.$(TOP) ...`). This is why a new file is invisible to the build until it's added to the right filelist.
+Questa compilation is split into separate libraries per layer — `uvm`, `dut`, `tb` — then elaborated and simulated in one step (`vsim tb.$(TOP) -L dut ...` at `make run`). This is why a new file is invisible to the build until it's added to the right filelist.
+
+The UVM DPI library (`uvm_dpi.cc` → `build/uvm_dpi.o` → `uvm_dpi.dll`/`.so`, loaded by `vsim -sv_lib`) is built by `common.mk` with ModelSim's own gcc (`MS_GCC_PATH`) as a 32-bit object, since ModelSim Starter is 32-bit. `HOST_OS` picks the branch: `UVM_DPI_MODE=MS_WIN32` on Windows (links `win32aloem/mtipli.dll`), `MS_LINUX32` on Linux (`-m32`, links `linuxaloem/libmtipli.so`). `make uvm_dpi_o` / `make uvm_dpi` build the object / shared lib on their own; Verilator ignores all of this and compiles `uvm_dpi.cc` straight into `Vtop` (`Makefile.veri`).
 
 ### Environment variable conventions
 
