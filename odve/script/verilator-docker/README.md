@@ -47,14 +47,22 @@ The no-root route is a native Verilator from conda-forge, entirely under
 ```
 
 Fetches the static `micromamba` binary to `~/.local/bin`, creates
-`~/opt/verilator-conda` with `verilator` and `cxx-compiler` (the latter is
-required — conda-forge's `verilated.mk` hardcodes conda's own compiler
-names), and writes `native.env` next to `setup.sh` with the two exports
-(`VERILATOR_ROOT`, `PATH`). `common_sourceme` sources that file whenever
+`~/opt/verilator-conda` with `verilator`, `cxx-compiler` (required —
+conda-forge's `verilated.mk` hardcodes conda's own compiler names) and
+`make` (the whole flow is Makefile-driven, and a host without root has no
+other way to get it), and writes `native.env` next to `setup.sh` with the two
+exports (`VERILATOR_ROOT`, `PATH`). Re-running `--native` on an env made by an
+older `setup.sh` adds whichever of the two tools is missing. `common_sourceme` sources that file whenever
 `VERILATOR_ROOT` is not already set, so `source sourceme` then just works and
 `make ... VERILATOR=1` never touches the container shim. `native.env` is
 gitignored; delete it to go back to containers. `./setup.sh --check` reports
-the native install when one is active.
+the native install when one is active, and verifies that `make` and `g++`
+resolve once `native.env` is sourced — not just that `verilator` starts.
+
+Every path needs `make` on the host; `setup.sh` reports it (and `g++`) under
+"Host build tools" with the distro's install command, and `--check` fails
+when the build could not start. The container has its own g++; `--portable`
+uses the host's.
 
 ## No root, no containers, no network: `--portable`
 
@@ -112,7 +120,7 @@ Apptainer just needs to consume it on the offline one.
 | `./setup.sh --install-engine --engine apptainer` | install Apptainer instead of podman |
 | `./setup.sh --load <tarball>` | load the image from a file instead of pulling |
 | `./setup.sh --image <ref>` | use a different image than the default |
-| `./setup.sh --native` | no container: install Verilator from conda-forge under `$HOME` and write `native.env` |
+| `./setup.sh --native` | no container: install Verilator, g++ and make from conda-forge under `$HOME` and write `native.env` |
 | `./setup.sh --portable` | no container, no network: unpack the vendored `prebuilt/` tarball for this host and write `native.env` |
 | `./setup.sh --pack-portable` | maintainers: rebuild the `prebuilt/` tarball from the `--native` install |
 
