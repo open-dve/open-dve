@@ -10,8 +10,9 @@
 #   ./setup.sh --install-engine --engine apptainer   install Apptainer instead of podman
 #   ./setup.sh --load <tarball>    load image from a file instead of pulling
 #   ./setup.sh --image <ref>       use a different image than the default
-#   ./setup.sh --native            no container at all: install Verilator from
-#                                  conda-forge under $HOME (no root needed)
+#   ./setup.sh --native            no container at all: install Verilator, a C++
+#                                  compiler and make from conda-forge under $HOME
+#                                  (no root needed)
 #   ./setup.sh --portable          no container, no download: unpack the prebuilt
 #                                  Verilator vendored in prebuilt/ for this OS/arch
 #   ./setup.sh --pack-portable     maintainers: rebuild prebuilt/ from a --native install
@@ -125,6 +126,32 @@ case "$OS_KIND" in
         ;;
 esac
 
+# ----------------------------------------------------------- host build tools
+
+# Every path drives the build through GNU make, and the portable path also
+# compiles the generated C++ with the host g++ (the container has its own,
+# and --native brings both in the conda env). Report once here; the mode-
+# specific checks below decide whether a gap is fatal.
+HAVE_MAKE=0; HAVE_GXX=0
+command -v make >/dev/null 2>&1 && HAVE_MAKE=1
+command -v g++  >/dev/null 2>&1 && HAVE_GXX=1
+
+hdr "Host build tools"
+if [ "$HAVE_MAKE" = 1 ]; then ok "make: $(make --version 2>/dev/null | head -1)"
+else warn "No 'make' on PATH - nothing here builds without it."; fi
+if [ "$HAVE_GXX" = 1 ]; then ok "g++:  $(g++ --version 2>/dev/null | head -1)"
+else info "No 'g++' on PATH - fine for the container path (it compiles inside the image)."; fi
+if [ "$HAVE_MAKE" = 0 ]; then
+    info "Without root: ./setup.sh --native installs make (and g++) under \$HOME via conda-forge."
+    case "$PKG" in
+        apt)    info "With root:    sudo apt-get install -y make g++" ;;
+        dnf)    info "With root:    sudo dnf install -y make gcc-c++" ;;
+        yum)    info "With root:    sudo yum install -y make gcc-c++" ;;
+        pacman) info "With root:    sudo pacman -S make gcc" ;;
+        zypper) info "With root:    sudo zypper install -y make gcc-c++" ;;
+    esac
+fi
+
 # ------------------------------------------------- native (no-container) path
 
 # Ubuntu 23.10+ ships kernel.apparmor_restrict_unprivileged_userns=1, which
@@ -170,18 +197,27 @@ install_native() {
     # cxx-compiler is not optional: conda-forge's verilated.mk hardcodes
     # CXX/LINK/AR to conda's own toolchain names (x86_64-conda-linux-gnu-c++),
     # so the generated C++ will not build against the system g++ alone.
+    # make is in the env for the same reason the compiler is: a host with no
+    # root has no other way to get it, and the whole flow is Makefile-driven.
     if [ -x "$NATIVE_PREFIX/share/verilator/bin/verilator" ]; then
         ok "Verilator env already present: $NATIVE_PREFIX"
     else
-        info "Creating $NATIVE_PREFIX with verilator + cxx-compiler (a few hundred MB, one time)..."
-        "$mm" create -y -q -p "$NATIVE_PREFIX" -c conda-forge verilator cxx-compiler \
+        info "Creating $NATIVE_PREFIX with verilator + cxx-compiler + make (a few hundred MB, one time)..."
+        "$mm" create -y -q -p "$NATIVE_PREFIX" -c conda-forge verilator cxx-compiler make \
             || { err "micromamba create failed."; return 1; }
     fi
-    if ! ls "$NATIVE_PREFIX"/bin/*-conda-*-c++ >/dev/null 2>&1; then
-        info "Adding cxx-compiler to the existing env..."
-        "$mm" install -y -q -p "$NATIVE_PREFIX" -c conda-forge cxx-compiler \
+    # An env made by an older setup.sh may lack either; add what is missing.
+    local missing=""
+    ls "$NATIVE_PREFIX"/bin/*-conda-*-c++ >/dev/null 2>&1 || missing="$missing cxx-compiler"
+    [ -x "$NATIVE_PREFIX/bin/make" ]                     || missing="$missing make"
+    if [ -n "$missing" ]; then
+        info "Adding$missing to the existing env..."
+        # shellcheck disable=SC2086
+        "$mm" install -y -q -p "$NATIVE_PREFIX" -c conda-forge $missing \
             || { err "micromamba install failed."; return 1; }
     fi
+    ok "make: $("$NATIVE_PREFIX/bin/make" --version | head -1)"
+    ok "g++:  $(PATH="$NATIVE_PREFIX/bin:$PATH" g++ --version | head -1)"
 
     local root="$NATIVE_PREFIX/share/verilator" ver
     ver="$(PATH="$NATIVE_PREFIX/bin:$PATH" VERILATOR_ROOT="$root" "$root/bin/verilator" --version 2>&1 | head -1)" \
@@ -279,7 +315,8 @@ unpack_portable() {
         return 1
     fi
     command -v perl >/dev/null 2>&1 || { err "perl is required by the verilator launcher."; return 1; }
-    if command -v g++ >/dev/null 2>&1; then
+    [ "$HAVE_MAKE" = 1 ] || warn "No make on PATH - the portable Verilator has none; the build cannot start until you add one."
+    if [ "$HAVE_GXX" = 1 ]; then
         ok "host g++: $(g++ --version | head -1)"
     else
         warn "No g++ on PATH - 'verilator' itself will run, but the generated model cannot be compiled."
@@ -314,13 +351,25 @@ case "$MODE" in
     portable) unpack_portable || exit 1; exit 0 ;;
 esac
 
-# --check: a working native install is what the build will actually use.
+# --check: a working native/portable install is what the build will actually
+# use, together with whatever make and g++ are on PATH once native.env is
+# sourced - so check those too, not just that verilator starts.
 if [ "$MODE" = "check" ] && [ -r "$NATIVE_ENV" ]; then
     hdr "Native Verilator"
     # shellcheck disable=SC1090
     if ver="$(. "$NATIVE_ENV" && "$VERILATOR_ROOT/bin/verilator" --version 2>&1 | head -1)"; then
         ok "$ver  (from $NATIVE_ENV)"
-        hdr "Result"; ok "Environment looks good."; exit 0
+        tools_ok=1
+        # shellcheck disable=SC1090
+        if v="$(. "$NATIVE_ENV" && make --version 2>/dev/null | head -1)"; then ok "make: $v"
+        else err "No 'make' on PATH after sourcing native.env - the build cannot start."; tools_ok=0; fi
+        # shellcheck disable=SC1090
+        if v="$(. "$NATIVE_ENV" && g++ --version 2>/dev/null | head -1)"; then ok "g++:  $v"
+        else err "No 'g++' on PATH after sourcing native.env - the generated C++ cannot be compiled."; tools_ok=0; fi
+        if [ "$tools_ok" = 1 ]; then hdr "Result"; ok "Environment looks good."; exit 0; fi
+        info "Re-run ./setup.sh --native to add the missing tool(s) to the conda env,"
+        info "or install them on the host (see 'Host build tools' above)."
+        hdr "Result"; err "Verilator runs but the build tools are incomplete."; exit 1
     fi
     warn "$NATIVE_ENV exists but its verilator does not run - checking containers instead."
 fi
@@ -509,6 +558,10 @@ else
 fi
 
 if [ "$MODE" = "check" ]; then
+    if [ "$HAVE_MAKE" = 0 ]; then
+        err "No 'make' on the host - the container has Verilator and g++, but make drives the build from outside it."
+        exit 1
+    fi
     if have_image; then
         if is_apptainer "$ENGINE"; then ok "Image present: $SIF_FILE"; else ok "Image present: $IMAGE"; fi
         info "verilator: $(engine_version)"
