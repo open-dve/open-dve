@@ -2,8 +2,8 @@
 
 VRF ?=$(PROJ)/vrf
 
-# TIMEOUT / GUI handling, shared with the Questa path (common.mk).
-include ${ODVE}/script/common/timeout.mk
+# Shared run settings (TIMEOUT, GUI) - the same file common.mk includes.
+include ${ODVE}/script/common/run.mk
 
 BIN=Vtop
 NPROC=4

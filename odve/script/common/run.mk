@@ -1,6 +1,10 @@
-# Per-run wall-clock limit, shared by both simulator paths (common.mk for
-# Questa, each agent's Makefile.veri for Verilator) so a hung simulation
-# cannot stall a regression forever.
+# Settings shared by the `run` target of BOTH simulator paths - common.mk for
+# Questa, each agent's Makefile.veri for Verilator. They live here rather than
+# in common.mk because Makefile.veri is a separate entry point and cannot
+# include common.mk: the two define the same target names (all, run, clean,
+# rclean, aclean, lint). Anything both paths must agree on belongs here; today
+# that is the wall-clock limit (so a hung simulation cannot stall a regression
+# forever), the GUI switch, and what vsim is told to do.
 #
 #   make run                 # limit: TIMEOUT minutes (default below)
 #   make run TIMEOUT=30      # 30 minutes

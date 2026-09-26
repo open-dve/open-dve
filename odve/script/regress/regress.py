@@ -8,7 +8,7 @@ once all of them are done. Every run gets RUN_OPTS+=+UVM_MAX_QUIT_COUNT=1 so a
 simulation stops at its first UVM error, unless the list entry or -ropts sets
 +UVM_MAX_QUIT_COUNT itself; other UVM plusargs go the same way, e.g.
 -ropts="RUN_OPTS+=+UVM_VERBOSITY=UVM_HIGH". Each run is also capped at
-TIMEOUT minutes by the Makefiles (default 180, see script/common/timeout.mk);
+TIMEOUT minutes by the Makefiles (default 180, see script/common/run.mk);
 a run killed on the clock says so in its verdict."""
 import sys
 import argparse

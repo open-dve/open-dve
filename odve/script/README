@@ -1,1 +1,42 @@
-Test message
+# script/ - the shared build, run and regression machinery
+
+Every agent's verification environment drives its build through these files,
+so a change here affects all of `comp/agents/*`. See `AGENTS.md` at the repo
+root for the commands and the wider architecture.
+
+## common/ - the Make includes
+
+| File | Purpose |
+| --- | --- |
+| `common.mk` | The single shared Make include behind every agent's `vrf/work/*/Makefile` (the **Questa** path). Defines the compile/elaborate/run targets (`prework`, `preuvm`, `auvm`, `predut`, `adut`, `pretb`, `atb`, `uvm_dpi`, `elib`, `run`, `lint`, `clean`/`rclean`/`aclean`) and the variables they read (`FL_TB`/`FL_UVM`/`FL_DUT`, `TOP`, `TESTNAME`, `RUN_DIR`, `COMP_DIR`, `RUN_OPTS`). Framework-wide build behaviour belongs here; agent-local overrides belong in that agent's `vrf/work/common/Makefile`. |
+| `run.mk` | Settings the **`run` target of both simulator paths** must agree on: `TIMEOUT` (per-run wall-clock cap in minutes, default 180, `0` = none), `GUI` (hand the session to an interactive vsim: no cap, no `-batch`, no auto-`quit`) and `RUN_DO` (what vsim is told to do), plus the `ODVE_TIMEOUT` marker a killed run gets appended to its `run.log` and the `CHECK_TIMEOUT` snippet that appends it. It is a separate file because `common.mk` (Questa) and each agent's `vrf/work/common/Makefile.veri` (Verilator) are **separate entry points**: they define the same target names (`all`, `run`, `clean`, `rclean`, `aclean`, `lint`), so `Makefile.veri` cannot include `common.mk` and would otherwise have to duplicate these settings per agent. Duplicating them would also break the contract with `regress/runlog.py`, which recognises a timed-out run by that exact marker. |
+| `cov.mk`, `multi.mk`, `qst/qst.mk`, `vlr/vlt.mk`, `vscode/vscode.mk` | Early/experimental includes (coverage, multi-run, per-tool and editor settings). Not referenced by the current agent flow. |
+| `Makefile_local_copy_to_vrf.mk` | Reference copy of the variables an agent's `vrf/work/common/Makefile` may override. |
+
+## regress/ - the regression runner
+
+`regress.py <list>` (invoked through the thin per-agent copy in
+`vrf/work/<variant>/`) compiles once, then runs every entry of
+`vrf/work/rlist/<list>.list` in parallel, printing each run's verdict and log
+as it finishes. `readlist.py` parses the list, `list2json.py` turns entries
+into `make run` commands, `jobrunner.py` runs them, and `runlog.py` decides
+each verdict from that run's own `run.log` (UVM report summary, or the
+`ODVE_TIMEOUT` marker from `common/run.mk`). `example.list` and `comp.cfg`
+document the list/config format. See `AGENTS.md` for the options.
+
+## source/ - the environment
+
+`common_sourceme`, sourced by every agent's `sourceme`: picks the vendored UVM
+(`ODVE_UVM`) and SVUnit (`ODVE_SVUNIT`), locates Questa from `vsim` on `PATH`
+(`MS_HOME`, plus its bundled gcc in `MS_GCC_PATH` for the UVM DPI build), and
+points `VERILATOR_ROOT` at a native install (`verilator-docker/native.env`) or
+the containerised one.
+
+## verilator-docker/ - Verilator without an install
+
+`setup.sh` (container image, or a no-root `--native`/`--portable` install) and
+the `bin/verilator` shim. Has its own `README.md`.
+
+## schedule/, pdf/pdf2req/
+
+Scheduling and requirements-document tooling; early, not part of the agent flow.

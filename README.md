@@ -37,6 +37,14 @@ To run TB with Questa:
 - install bash for git
 - install tool readlink
 
+Each `make run` is capped at `TIMEOUT` minutes (default 180) so a hung test
+cannot stall a regression - `make run TIMEOUT=30`, or `TIMEOUT=0` for no cap.
+`make run GUI=1` hands the session to an interactive vsim instead: no cap, no
+batch mode. A run killed on the clock says so at the end of its `run.log`, and
+the regression runner reports it as the failure reason (`./regress.py <list>
+-exer` prints the error of every failed test with the command to reproduce it).
+See `odve/script/README` for what each shared Make include does.
+
 To run TB with Verilator
 
 ## Recommended: containerised Verilator (docker or podman)

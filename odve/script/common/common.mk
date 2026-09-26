@@ -15,8 +15,9 @@ endif
 
 RUN_PATH=$(PWD)/$(RUN_DIR)
 
-# TIMEOUT / GUI handling, shared with the Verilator path (Makefile.veri).
-include $(dir $(lastword $(MAKEFILE_LIST)))timeout.mk
+# Shared run settings (TIMEOUT, GUI, RUN_DO) - also included by the Verilator
+# path's Makefile.veri, which cannot include this file.
+include $(dir $(lastword $(MAKEFILE_LIST)))run.mk
 
 # What vsim is told to do. GUI=1 hands the session to the user: keep the
 # simulator open (no `quit`) and drop the -batch that the agent Makefile
