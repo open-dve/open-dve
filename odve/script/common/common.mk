@@ -15,6 +15,18 @@ endif
 
 RUN_PATH=$(PWD)/$(RUN_DIR)
 
+# TIMEOUT / GUI handling, shared with the Verilator path (Makefile.veri).
+include $(dir $(lastword $(MAKEFILE_LIST)))timeout.mk
+
+# What vsim is told to do. GUI=1 hands the session to the user: keep the
+# simulator open (no `quit`) and drop the -batch that the agent Makefile
+# forces for regressions, so the GUI can actually come up.
+RUN_DO ?= run -all; quit;
+ifeq ($(GUI),1)
+    RUN_DO = run -all;
+    override RUN_OPTS := $(filter-out -batch -c,$(RUN_OPTS)) -gui
+endif
+
 # Simulator run switches and plusargs. Given on the make command line by
 # regress lists (RUN_OPTS+='+arg=1') and by regress.py (+UVM_MAX_QUIT_COUNT),
 # so an agent Makefile must add its own with `override RUN_OPTS += ...`, or
@@ -273,13 +285,15 @@ prerun : mkdir_run
 
 
 run : prerun 
+	@echo "run: $(if $(TIMEOUT_CMD),time limit $(strip $(TIMEOUT)) min,$(TIMEOUT_NOTE))"
 	cd $(RUN_DIR); \
-	vsim tb.$(TOP) \
+	$(TIMEOUT_CMD) vsim tb.$(TOP) \
 		$(RUN_OPTS) \
 		$(UVM_DPI_C_RUN_OPTS) \
 		$(MK_RUN_OPTS) \
 		-l run.log \
-		-do "run -all; quit;"
+		-do "$(RUN_DO)"; \
+	$(CHECK_TIMEOUT)
 
 dpi_c : mkdir_run $(OBJS) so co
 

@@ -1,6 +1,10 @@
 .PHONY: all run clean version lint
 
 VRF ?=$(PROJ)/vrf
+
+# TIMEOUT / GUI handling, shared with the Questa path (common.mk).
+include ${ODVE}/script/common/timeout.mk
+
 BIN=Vtop
 NPROC=4
 MODE ?= --binary
@@ -33,7 +37,8 @@ lint:
 		exit $$rc
 	
 run:
-	./obj_dir/$(BIN) $(RUN_OPTS)
+	@echo "run: $(if $(TIMEOUT_CMD),time limit $(strip $(TIMEOUT)) min,$(TIMEOUT_NOTE))"
+	$(TIMEOUT_CMD) ./obj_dir/$(BIN) $(RUN_OPTS); $(CHECK_TIMEOUT_NOLOG)
 
 version:
 	$(VERILATOR_ROOT)/bin/verilator --version

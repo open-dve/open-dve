@@ -1,6 +1,10 @@
 .PHONY: all run clean version lint
 
 VRF ?=$(PROJ)/vrf
+
+# TIMEOUT / GUI handling, shared with the Questa path (common.mk).
+include ${ODVE}/script/common/timeout.mk
+
 BIN=Vtop
 NPROC=4
 MODE ?= --binary
@@ -68,8 +72,10 @@ lint:
 
 run:
 	mkdir -p $(RUN_DIR)
-	cd $(RUN_DIR); ./../obj_dir/$(BIN) $(TEST_PLUSARG) $(RUN_OPTS) > run.log 2>&1; \
+	@echo "run: $(if $(TIMEOUT_CMD),time limit $(strip $(TIMEOUT)) min,$(TIMEOUT_NOTE))"
+	cd $(RUN_DIR); $(TIMEOUT_CMD) ./../obj_dir/$(BIN) $(TEST_PLUSARG) $(RUN_OPTS) > run.log 2>&1; \
 		rc=$$?; cat run.log; \
+		if [ $$rc -eq 124 ] || [ $$rc -eq 137 ]; then echo "$(TIMEOUT_MSG)" | tee -a run.log; exit $$rc; fi; \
 		if [ $$rc -ne 0 ]; then echo "*** $(BIN) exited $$rc"; exit $$rc; fi; \
 		if grep -qE '^UVM_(ERROR|FATAL) *: *[1-9]' run.log; then \
 			echo "*** UVM errors reported - see $(RUN_DIR)/run.log"; exit 1; \

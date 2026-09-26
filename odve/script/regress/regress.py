@@ -7,11 +7,14 @@ moment that job finishes, while the rest keep running; a summary table follows
 once all of them are done. Every run gets RUN_OPTS+=+UVM_MAX_QUIT_COUNT=1 so a
 simulation stops at its first UVM error, unless the list entry or -ropts sets
 +UVM_MAX_QUIT_COUNT itself; other UVM plusargs go the same way, e.g.
--ropts="RUN_OPTS+=+UVM_VERBOSITY=UVM_HIGH"."""
+-ropts="RUN_OPTS+=+UVM_VERBOSITY=UVM_HIGH". Each run is also capped at
+TIMEOUT minutes by the Makefiles (default 180, see script/common/timeout.mk);
+a run killed on the clock says so in its verdict."""
 import sys
 import argparse
 import json
 import os
+import re
 import time
 
 
@@ -29,7 +32,7 @@ sys.path.append(lib_path)
 from readlist  import readlist
 from list2json import list2json
 from jobrunner import JobRunner
-from runlog    import parse_run_log
+from runlog    import parse_run_log, extract_error
 
 cwd=os.getcwd()
 RULE = "=" * 78
@@ -39,6 +42,13 @@ THIN = "-" * 78
 # simulate on past it. UVM takes the first +UVM_MAX_QUIT_COUNT it sees, so a
 # user's value must replace ours, not follow it.
 DEFAULT_PLUSARGS = "+UVM_MAX_QUIT_COUNT=1"
+
+
+def test_name(opts):
+    """UVM test a list entry names, for the -exer report. Empty when the entry
+    sets none: the TB then runs whatever top.sv's run_test() call hardcodes."""
+    m = re.search(r"(?:^|\s)TESTNAME=(\S+)", opts)
+    return m.group(1).strip("'\"") if m else ""
 
 
 def print_output(result, tail):
@@ -81,11 +91,15 @@ def main():
                              'Verilator instead of Questa. UVM plusargs go through RUN_OPTS, '
                              'e.g. -ropts="RUN_OPTS+=+UVM_VERBOSITY=UVM_HIGH"; giving '
                              '+UVM_MAX_QUIT_COUNT there replaces the default '
-                             f'"{DEFAULT_PLUSARGS}"')
+                             f'"{DEFAULT_PLUSARGS}". Other make variables work too, '
+                             'e.g. -ropts="TIMEOUT=30" for a 30-minute cap per run')
     parser.add_argument("-tail", "--tail", type=int, default=0, metavar="LINES",
                         help="Print only the last LINES lines of each log (default: whole log)")
     parser.add_argument("-quiet", "-q", "--quiet", action="store_true",
                         help="Print only the status line per run, not its run.log")
+    parser.add_argument("-exer", "--exer", action="store_true",
+                        help="Extract errors: after the summary, re-read every failed run's "
+                             "run.log and print its test name, error message and make command")
 
     args = parser.parse_args()
     maxj = args.max_jobs
@@ -171,6 +185,24 @@ def main():
             line += f"\n      last: {status.last_error}"
         print(line)
     print(RULE)
+
+    # -exer: one block per failed run, read back from its own log so it also
+    # picks up a reason the log only got at the end (e.g. the TIMEOUT marker).
+    if args.exer:
+        if failed:
+            print(f"\nExtracted errors (-exer): {len(failed)} failed run(s)")
+            print(RULE)
+            for name in failed:
+                status, result, log = statuses[name]
+                test = test_name(cmdsj[name]["cmd"])
+                print(f"TestName: {name}" + (f" ({test})" if test else ""))
+                print(f"ErrorMsg: {extract_error(log, status.reason)}")
+                print(f"Cmd     : {result.command}")
+                print(f"Log     : {log}")
+                print(THIN)
+        else:
+            print("-exer: every run passed, no errors to extract.")
+
     if failed:
         print("One or more regression runs failed: " + ", ".join(failed))
         exit(1)

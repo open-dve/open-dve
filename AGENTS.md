@@ -22,7 +22,7 @@ make aclean all run
 
 - `sourceme` exports `ODVE`, the agent-specific path var (e.g. `ODVE_APB`), and `PROJ` as absolute paths, then sources `script/source/common_sourceme`, which sets `ODVE_UVM` (defaults to the vendored `uvm/uvm-1.1d/`; `uvm/1800.2-2020-2.0/` is available but commented out) and locates `MS_HOME` from `vsim` on `PATH`.
 - `make all` runs `prework preuvm auvm uvm_dpi predut adut pretb atb elib` — compiles UVM, DUT, and TB into **separate Questa libraries** (`build/uvm`, `build/dut`, `build/tb`), then `elib` maps them into `default__run/`. It does **not** elaborate: the `elab` (`vopt`) target is defined but unused, so elaboration only happens inside `vsim` at `make run`.
-- `make run` invokes `vsim tb.$(TOP) ... +UVM_TESTNAME=$(TESTNAME)` (default `TESTNAME=base_test`; override with `make TESTNAME=<name> run`).
+- `make run` invokes `vsim tb.$(TOP) ... +UVM_TESTNAME=$(TESTNAME)` (default `TESTNAME=base_test`; override with `make TESTNAME=<name> run`), under a `TIMEOUT`-minute wall-clock cap (default 180, `script/common/timeout.mk`; `TIMEOUT=0` disables). `make run GUI=1` hands the session to an interactive vsim — no cap, no `-batch`, no auto-`quit`. A run killed on the clock gets `*** ODVE_TIMEOUT: ...` appended to its `run.log`, because such a log otherwise ends without a UVM report summary (or empty) and would give no reason.
 - `make clean`/`make aclean` remove build artifacts; `make rclean` removes `*__run` result directories.
 - Each agent's `vrf/work/<variant>/Makefile` (`run`, `check`, `mini`, `common`) `include`s `work/common/Makefile`, which includes the single shared `script/common/common.mk` used by every agent. Prefer changing `script/common/common.mk` for framework-wide build/run behavior, and an agent's `work/common/Makefile` for agent-local overrides.
 
@@ -39,7 +39,16 @@ source sourceme
 - converts it to job commands via `list2json.py`,
 - executes jobs in parallel via `jobrunner.py` (`-max_jobs`/`-j`, default 4), printing each run's status line and `run.log` the moment that run finishes, then a summary table once all are done.
 
-Each run's verdict comes from its own `<RUN_DIR>/run.log` (`runlog.py`): make must exit 0, the UVM report summary must be present, and `UVM_ERROR`/`UVM_FATAL` must both be 0; the last `UVM_ERROR`/`UVM_FATAL` message line is shown next to a failure. Every run gets `RUN_OPTS+=+UVM_MAX_QUIT_COUNT=1` (stop at the first UVM error) — `RUN_OPTS` is the Makefiles' run-switch variable, reaching `vsim` and the Verilator binary alike — unless the list entry or `-ropts` already carries `+UVM_MAX_QUIT_COUNT`, in which case that value is used instead. Other UVM plusargs go the same way: `-ropts="RUN_OPTS+=+UVM_VERBOSITY=UVM_HIGH"`. Because `RUN_OPTS` arrives on the make command line, agent Makefiles must add their own switches with `override RUN_OPTS += ...` (as `-batch` is), or make discards them. `-quiet` prints only status lines; `-tail N` trims each log.
+Each run's verdict comes from its own `<RUN_DIR>/run.log` (`runlog.py`): make must exit 0, the UVM report summary must be present, and `UVM_ERROR`/`UVM_FATAL` must both be 0; the last `UVM_ERROR`/`UVM_FATAL` message line is shown next to a failure. Every run gets `RUN_OPTS+=+UVM_MAX_QUIT_COUNT=1` (stop at the first UVM error) — `RUN_OPTS` is the Makefiles' run-switch variable, reaching `vsim` and the Verilator binary alike — unless the list entry or `-ropts` already carries `+UVM_MAX_QUIT_COUNT`, in which case that value is used instead. Other UVM plusargs go the same way: `-ropts="RUN_OPTS+=+UVM_VERBOSITY=UVM_HIGH"`. Because `RUN_OPTS` arrives on the make command line, agent Makefiles must add their own switches with `override RUN_OPTS += ...` (as `-batch` is), or make discards them. `-quiet` prints only status lines; `-tail N` trims each log; `-exer` ("extract errors") re-reads every failed run's log after the summary and prints a block per failure:
+
+```
+TestName: apb_read (read_test)
+ErrorMsg: UVM_FATAL @ 0: reporter [INVTST] Requested test ... not found.
+Cmd     : make run RUN_DIR=apb_read TESTNAME=read_test RUN_OPTS+=+UVM_MAX_QUIT_COUNT=1
+Log     : .../work/run/apb_read/run.log
+```
+
+`ErrorMsg` is the `ODVE_TIMEOUT` marker for a run killed on the clock, else the last `UVM_ERROR`/`UVM_FATAL` message, else the last tool-level error line. Per-run make variables reach the runner through `-ropts` too, e.g. `-ropts="TIMEOUT=30"`, or per entry in the list.
 
 `script/regress/example.list` and `script/regress/comp.cfg` are references for the list/config format. Any `work/<variant>` folder has its own `regress.py`/`sourceme`, so the list name doesn't need to match the folder — e.g. `apb`'s `work/rlist/submit.list` (pre-push regression, run as `./regress.py submit` from `work/run` or `work/mini`) sits alongside `mini.list`.
 
