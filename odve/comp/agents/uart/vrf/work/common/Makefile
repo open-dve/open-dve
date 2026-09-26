@@ -55,9 +55,11 @@ prerun : mkdir_run
 	cp -r -n $(DEFAULT_RUN_DIR)/modelsim.ini $(RUN_DIR); \
 	
 run : prerun 
+	@echo "run: $(if $(TIMEOUT_CMD),time limit $(strip $(TIMEOUT)) min,$(TIMEOUT_NOTE))"
 	cd $(RUN_DIR); \
-	vsim tb.$(TOP) \
+	$(TIMEOUT_CMD) vsim tb.$(TOP) \
 		$(RUN_OPTS) \
 		$(MK_RUN_OPTS) \
 		-l run.log \
-		-do "run -all; quit;"
+		-do "$(RUN_DO)"; \
+	$(CHECK_TIMEOUT)
