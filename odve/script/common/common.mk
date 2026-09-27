@@ -257,7 +257,7 @@ elab :
 	-L dut -L uvm
 	-l elab.log
 
-ALL_CMD ?= prework preuvm auvm uvm_dpi predut adut pretb atb elib
+ALL_CMD ?= prework preuvm auvm uvm_dpi predut adut pretb $(COV_ALL_CMD) atb elib
 all :  $(ALL_CMD)
 
 # `make lint` is the fast front-of-build check on every path, whatever tool is

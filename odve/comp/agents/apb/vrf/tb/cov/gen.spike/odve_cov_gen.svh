@@ -1,5 +1,6 @@
 // PHASE-0 SPIKE: hand-written stand-in for what `covgen.py scan` will
-// generate into $(COMP_DIR)/cov/ (doc/fcov-plan.md 3.5, 4.1). Sizes the
+// generate into $(COV_DIR) (doc/fcov-plan.md 3.5, 4.1); the `acov` build
+// step copies it there for now. Sizes the
 // collector and names the model for the dump header.
 `ifndef ODVE_COV_GEN_SVH
 `define ODVE_COV_GEN_SVH

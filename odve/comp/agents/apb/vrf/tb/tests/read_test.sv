@@ -27,7 +27,7 @@ class read_test extends uvm_test;
         void'($value$plusargs("cov_iters=%d", iters));
         phase.raise_objection(this);
         for (int i = 0; i < iters; i++) begin
-            `odve_cov_sample(cg, (lens[i % 8], bit'(i % 2)))
+            `odve_cov_sample(cg, lens[i % 8], bit'(i % 2))
             #1;
         end
         phase.drop_objection(this);

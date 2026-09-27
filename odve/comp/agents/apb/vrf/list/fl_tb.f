@@ -7,8 +7,8 @@
 +incdir+${ODVE}/comp/common/macro/
 +incdir+${ODVE}/comp/common/cov/
 +incdir+${ODVE}/comp/agents/apb/vrf/tb/cov/
-${ODVE}/comp/common/cov/odve_cov_if.sv
 ${ODVE}/comp/common/cov/odve_cov_pkg.sv
+${ODVE}/comp/common/cov/odve_cov_final.sv
 
 ${ODVE}/comp/agents/apb/vrf/tb/tests/test_pkg.sv
 
