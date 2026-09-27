@@ -18,6 +18,7 @@ RUN_PATH=$(PWD)/$(RUN_DIR)
 # Shared run settings (TIMEOUT, GUI, RUN_DO) - also included by the Verilator
 # path's Makefile.veri, which cannot include this file.
 include $(dir $(lastword $(MAKEFILE_LIST)))run.mk
+include $(dir $(lastword $(MAKEFILE_LIST)))cov.mk
 
 # What vsim is told to do. GUI=1 hands the session to the user: keep the
 # simulator open (no `quit`) and drop the -batch that the agent Makefile
@@ -35,7 +36,7 @@ endif
 RUN_OPTS +=
 
 MK_RUN_OPTS+=+UVM_TESTNAME=$(TESTNAME) \
--L dut 
+-L dut $(COV_RUN_OPTS)
 #MK_RUN_OPTS+=-sv_lib ${ODVE_UVM}/src/dpi
 
 ###COMPILE options
@@ -245,6 +246,7 @@ adut :
 atb : 
 	cd $(COMP_DIR) ;\
 	vlog -reportprogress 300 -work tb -sv -covercells -cover sbcefx3 \
+	$(COV_DEFS) \
 	-f $(FL_TB) \
 	-L dut -L uvm
 
