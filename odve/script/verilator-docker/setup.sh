@@ -158,7 +158,15 @@ fi
 # stops an unprivileged process writing its own uid_map - the one thing
 # rootless podman and Apptainer both need. Only root can lift it, so on such
 # a host the no-root route is a native Verilator from conda-forge under $HOME.
-userns_ok() { unshare -U -r true >/dev/null 2>&1; }
+# This is a Linux user-namespace concept, meaningless on Windows/macOS (no
+# `unshare`, no kernel sysctl there) - always "ok" on those hosts so the
+# irrelevant kernel-restriction warning below isn't shown for the wrong reason.
+userns_ok() {
+    case "$OS_KIND" in
+        linux|wsl) unshare -U -r true >/dev/null 2>&1 ;;
+        *)         return 0 ;;
+    esac
+}
 
 warn_userns_blocked() {
     warn "This host blocks unprivileged user namespaces ('unshare -U -r' fails;"
