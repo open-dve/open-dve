@@ -133,50 +133,100 @@ included by `common.mk` and by each `Makefile.veri` exactly like `run.mk`:
 | `COVCNT=1\|32` | counter width, default 1 | — |
 | `COVEVERY=N` | — | checkpoint dump every N samples, default 1 000 000; `0` = only at the end |
 
+With `FCOV=1` the build gains one step before analysis: target `covgen`
+(in `cov.mk`, a prerequisite of `atb` and of the Verilator `all`) runs
+`covgen.py scan` over the filelists and writes `$(COMP_DIR)/cov/odve_cov_gen.svh`
++ `covmap.json`; `odve_cov_pkg.sv` includes that `.svh` under `ODVE_FCOV`
+(`+incdir+$(COMP_DIR)/cov`). The step **never fails the build** on a model
+problem (§4.1): it always writes a valid include, replacing anything it
+could not understand by a stub and a warning.
+
 Default build stays exactly as today: no defines, no collector, no coverage
 flags. `regress.py -cov` adds `FCOV=1` to `-ropts` and runs the report step.
 
 ## 4. Formats
 
-### 4.1 Coverage model — `cov/<block>_cov.yaml` (single source of truth)
+### 4.1 Coverage model — written in the SystemVerilog source, in covergroup syntax
 
-```yaml
-model: apb_cov                # becomes the covergroup type name
-version: 1
-points:
-  - name: len                 # coverpoint
-    type: int
-    bins:
-      - {name: len_1,   value: 1}
-      - {name: len_2_4, range: [2, 4]}
-      - {name: len_max, value: 255, at_least: 2}
-      - {name: len_pow2, auto: [8, 16, 32, 64]}   # one bin per value
-      - {name: up, transition: [1, 2, 4]}         # 1 => 2 => 4
-    ignore:  [{name: len_0, value: 0}]
-    illegal: [{name: len_bad, range: [256, 4095]}]
-  - name: addr
-    bins:
-      - {name: lo, range: [0x0000, 0x7FFF]}
-      - {name: hi, range: [0x8000, 0xFFFF]}
-  - name: dir
-    bins: [{name: rd, value: 0}, {name: wr, value: 1}]
-crosses:
-  - name: len_x_dir
-    points: [len, dir]
-    ignore: [{len: len_max, dir: rd}]  # cross filter by bin names
-sample:                                 # signature of the generated sample()
-  args: [len, addr, dir]
+The model lives **next to the code that samples it**, as a real covergroup in
+standard syntax — no separate description file to keep in sync, nothing new
+to learn, and the same text compiles natively where covergroups are
+available. Two macros connect it to the portable path:
+
+```systemverilog
+// monitor / scoreboard / env - wherever the values are known
+`ifdef ODVE_COV_NATIVE                      // licensed Questa, Verilator cross-check: the real thing
+  covergroup apb_cg with function sample(int len, bit dir);
+    cp_len: coverpoint len { bins one = {1}; bins some = {[2:4]}; bins big[] = {8, 16};
+                             ignore_bins zero = {0}; illegal_bins bad = {[256:$]};
+                             option.at_least = 1; }
+    cp_dir: coverpoint dir iff (enabled);
+    x_len_dir: cross cp_len, cp_dir;
+  endgroup
+`endif
+`odve_cov_create(apb_cg)                    // the group object, named apb_cg_i
+...
+`odve_cov_sample(apb_cg, item.len, item.dir)   // positional = the sample() arguments
 ```
 
-`covgen.py gen` produces, from this file:
+| mode | `` `odve_cov_create(apb_cg) `` expands to | `` `odve_cov_sample(apb_cg, a, b) `` |
+| --- | --- | --- |
+| default (no `FCOV`) | nothing | nothing — no collector, no cost |
+| `FCOV=1` | `odve_cov_apb_cg apb_cg_i = new("apb_cg", this);` — the generated class | `apb_cg_i.sample(a, b)` |
+| `ODVE_COV_NATIVE` | `apb_cg apb_cg_i = new();` — the covergroup itself | `apb_cg_i.sample(a, b)` |
 
-- `odve_cov_<model>_pkg.sv` — IDs (`localparam int P_LEN = 1; ...`), the bin
-  tables, `value2bin`, and class `odve_cov_<model>` extending
-  `odve_cov_group` with `sample(int len, int addr, int dir)`;
-- collector parameters (`NP`, `N`, `P_BASE[]`, `P_NBINS[]`);
-- `covmap.json` — ID → name/kind/range/source line, cross composition, model
-  hash (sha256 of the YAML) that every dump carries, so a stale map is
-  detected instead of producing a wrong report.
+Why an `` `ifdef `` block and not the body as a macro argument (the original
+idea, `` `odve_cov_create(apb_cg, covergroup ... endgroup) ``): measured on
+both tools, the preprocessor splits the body at the top-level comma of
+`cross cp_len, cp_dir;` — Verilator: `Define passed too many arguments`,
+vlog: `number of actual arguments (3) are not equal to the number of formal
+arguments (2)` — and it does so even when the macro expands to nothing,
+because arguments are parsed before expansion. The block form is clean on
+both, and the compilers never see the body unless asked to.
+
+**`covgen.py scan`** (the pre-compile step, §3.5) reads every file on the
+filelists, finds the `ODVE_COV_NATIVE` blocks and the `create`/`sample`
+macros, parses the covergroups and generates, per group:
+
+- class `odve_cov_<name>` extending `odve_cov_group`, with `sample(<the
+  declared arguments>)`; the IDs, the bin tables and `value2bin` of §3.4;
+- the collector parameters and `covmap.json` (ID → name/kind/range,
+  file:line, the covergroup source text for the report, model hash).
+
+Supported subset in the first version (everything is standard SV, so a
+model that passes here also compiles natively):
+
+- `covergroup <name> with function sample(<typed args>)` — explicit
+  sampling is required; clocking-event covergroups (`@(posedge clk)`) are
+  not supported (warned);
+- `coverpoint <arg> [iff (<arg>)]` where the expression is a sample argument;
+- `bins b = { values, [lo:hi], ... }`, `bins b[] = { ... }` (one bin per
+  value/range, named `b[value]` as Questa/Verilator do), `wildcard bins`,
+  `ignore_bins`, `illegal_bins`, `default`;
+- transition bins `bins t = (a => b => c)` (single sequence, no `[*n]`);
+- `option.at_least`, `option.weight`;
+- `cross a, b[, c]` with `ignore_bins x = binsof(a.b1) && binsof(b.b2)`.
+
+Anything else — `with` clauses, `intersect`, repetition, expressions in
+coverpoints, per-instance options — makes the whole group **unsupported**:
+`scan` prints `[ODVE_COV] warning: covergroup apb_cg (file:line) skipped:
+unsupported 'binsof ... intersect'`, generates a **stub** class whose
+`sample()` does nothing (and warns once at run time), and exits 0. A
+`sample` macro naming a group with no `create` gets a stub the same way.
+The build is never broken by the coverage model; a script crash also leaves
+a valid (empty) include behind, written first. Groups that are supported are
+still collected, so partial models degrade gracefully.
+
+Several instances of a component mean several objects of the same group
+type: each registers its `get_full_name()` with `odve_cov_server` at
+construction and gets an instance id; the dump carries `# inst <id> <path>`
+lines and an instance column, so reports have both the per-type (merged)
+and per-instance view that UCIS models.
+
+A YAML form of the same model (`covgen.py gen model.yaml`) stays available
+as an **optional** input for coverage that has no natural SV home (system
+level, testplan-driven), and `scan --emit-yaml` writes the parsed model out
+in it for inspection — both feed the same internal model object.
 
 ### 4.2 Run dump — `<RUN_DIR>/cov.dump`
 
@@ -220,13 +270,17 @@ pyucis (UCIS XML, history node per test) for interoperability; `cov.yaml`
 | `odve_cov_if.sv` | interface: `task sample(int pid, int bin)`, `task sample_x(int xpid, int xbin)`, `task reset()`, `function int hits(pid, bin)`; carries the plusargs |
 | `odve_cov_collector.sv` | the parameterised counter memory, `prev_bin[]`, saturation, checkpoint counter, `final` dump — generic, never edited per model |
 | `odve_cov_pkg.sv` | base class `odve_cov_group` (holds the vif, `value2bin` call, illegal → `uvm_error`, `sample_x` for crosses, `covcnt` awareness); `odve_cov_server` singleton (vif registry keyed by model name, dump path from `+odve_cov_dump`) |
-| `../macro/odve_macro.sv` | ``odve_cov_sample(grp, args...)`` → expands to `grp.sample(args)` under `ODVE_FCOV`, to nothing otherwise |
+| `../macro/odve_macro.sv` | ``odve_cov_create(name)`` and ``odve_cov_sample(name, args...)`` with the three expansions of §4.1 (`sample` takes up to 8 positional arguments via macro defaults) |
+| `$(COMP_DIR)/cov/odve_cov_gen.svh` | **generated** by `covgen.py scan` at build time, included by `odve_cov_pkg.sv` under `ODVE_FCOV`; never committed |
 | `ut/` | **svunit** tests of the collector (svunit is vendored and so far unused — first real consumer): counting, saturation, transition, cross index, checkpoint/final dump, reserved IDs |
 
 ### 5.2 `script/cov/covgen.py` — one tool, sub-commands
 
 ```
-covgen.py gen      <model.yaml> -o <dir>              SV package + collector params + covmap.json
+covgen.py scan     -f <filelist>... -o <dir> [--emit-yaml]   pre-compile: parse covergroups from the sources,
+                                                       generate odve_cov_gen.svh + covmap.json; stubs + warnings
+                                                       for unsupported groups, never a non-zero exit on model errors
+covgen.py gen      <model.yaml> -o <dir>              same output from the optional YAML form
 covgen.py check    <covmap.json> <dump>...            hash/version/truncation checks
 covgen.py merge    <covmap.json> <dump>... -o cov.db.json   sum counts, per-bin test lists, per-test stats
 covgen.py report   cov.db.json -o <dir> [--code-cov <lcov.info>|<coverage.dat>]
@@ -236,6 +290,10 @@ covgen.py analyze  cov.db.json [--holes] [--unique-per-test] [--min-tests] [--il
 covgen.py export   cov.db.json --format ucis-xml|pyucis-yaml|lcov
 covgen.py env      --check | --setup                  the offline environment (§9)
 ```
+
+`scan` needs a filelist reader (nested `-f`, `+incdir+`, `${VAR}` expansion —
+the same rules `vlog`/`verilator` apply) and a small recursive-descent parser
+for the covergroup subset above; both are ours, standard library only.
 
 Pure Python 3.9+. Third-party: `pyyaml`, `pyucis` (pinned); `jinja2` only if
 the own HTML pages grow beyond string templates. Any of them missing must
@@ -323,7 +381,7 @@ memory increment. No strings, no dynamic allocation.
 | --- | --- | --- |
 | **0. Spike** | hand-written collector for `apb` (2 points + 1 cross), `final` + checkpoint dump, 40-line converter, pyucis HTML | runs on both simulators; Verilator overhead measured; `final` under `$finish` from UVM confirmed on both; kill-by-`TIMEOUT` leaves a usable checkpoint |
 | **1. Core** | `comp/common/cov/` (§5.1), macro, svunit tests | `make lint` and `make all run` on both simulators for apb with `FCOV=1` and without |
-| **2. Generator** | `covgen.py gen` + model YAML format (§4.1), `covmap.json`, hash | pytest on the generator; generated package lints on both simulators; a model with every bin kind |
+| **2. Parser + generator** | `covgen.py scan` (filelist reader, covergroup-subset parser, stub/warning policy) and `gen` (YAML form), `covmap.json`, hash; the `covgen` make target | pytest on parser and generator (every supported construct, and one unsupported per rule → stub + warning + exit 0); the generated package lints on both simulators; the same source compiled with `ODVE_COV_NATIVE` under Verilator as a cross-check |
 | **3. Post-sim** | `merge`, `check`, `report`, `analyze`, `export`; `cov.mk`; `regress.py -cov` and the summary line | pytest with synthetic dumps; regression on both simulators producing `cov/index.html` |
 | **4. Pilot** | `apb_cov.yaml`, collector in the apb env, `sample()` from monitor/scoreboard | `./regress.py submit -cov` on both simulators; attribution page shows `read_test` |
 | **5. Docs & scaffold** | `comp/common/README`, `AGENTS.md`/`CLAUDE.md`, `vrf-workflow` skill section, `new_agent.sh` emits a `<proto>_cov.yaml` skeleton | scaffold a throwaway agent, build with `FCOV=1` |
@@ -357,6 +415,11 @@ is Python-only, so it should just work — to be verified once, like the rest.
   importer incomplete. Mitigation: use it through its Python API only, pin the
   version, keep `merge`/`txt` independent of it, and keep the door open for an
   own HTML renderer if its report stops being enough.
+- **Parser subset**: the covergroup grammar is large; the first version
+  covers the constructs of §4.1 and refuses the rest loudly. The stub policy
+  keeps builds green, but a refused group is *silently absent* from the
+  report unless the warning is read — `scan` therefore also writes the list
+  of skipped groups into `covmap.json` and the HTML shows it.
 - **`final` and checkpoint semantics on Starter**: `$fwrite` in `final` and
   file rewrite performance to be confirmed in the spike.
 - **Huge crosses**: bins = product of members; the generator warns above a
