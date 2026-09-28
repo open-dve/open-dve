@@ -13,8 +13,33 @@
 #
 # TIMEOUT is an ordinary make variable, so a regression passes it through
 # -ropts ("TIMEOUT=30") and a list entry can set it per run.
+#
+#   make run                 # a fresh random seed, printed and written to run.log
+#   make run SEED=101        # this seed (a list entry or -ropts="SEED=101" too)
+#
+# SEED is the simulation seed. It is random for every `make run` unless
+# given, so each run of a regression gets its own and no test is forever run
+# with one value - "passes at seed 1" is not "passes". Both simulators are
+# told it natively (vsim -sv_seed, +verilator+seed+) so $urandom follows it,
+# and it is written to run.log as "*** ODVE_SEED: <n>", which regress.py
+# reads back onto its status lines and into the -exer report with the
+# command that reproduces the run. An agent that keys its own randomness on
+# a plusarg (pcie-v's +PCIEV_SEED) derives that from $(SEED) in its Makefile.
 
 TIMEOUT ?= 180
+
+# 1..2^31-2: what Verilator accepts (0 would mean "pick one"), and Questa
+# takes any 32-bit value. An environment or command-line SEED counts as given.
+ifeq ($(origin SEED),undefined)
+    SEED := $(shell od -An -N4 -tu4 /dev/urandom 2>/dev/null | awk '{print ($$1 % 2147483646) + 1}')
+    ifeq ($(strip $(SEED)),)
+        SEED := $(shell date +%s)
+    endif
+    SEED_NOTE = seed $(SEED) (random; reproduce with SEED=$(SEED))
+else
+    SEED_NOTE = seed $(SEED) (given)
+endif
+SEED_MSG = *** ODVE_SEED: $(SEED)
 
 # GUI=1 is a human watching the simulator: killing it on a clock would be
 # wrong, and the run is not being harvested by a regression anyway.
@@ -45,9 +70,12 @@ TIMEOUT_MSG = *** ODVE_TIMEOUT: killed after $(strip $(TIMEOUT)) min (TIMEOUT=$(
 
 # Put right after the simulator call in a recipe, as one shell line:
 #   cd $(RUN_DIR); $(TIMEOUT_CMD) vsim ... ; $(CHECK_TIMEOUT)
-# 124 = GNU timeout expired, 137 = SIGKILL after the -k grace period.
-CHECK_TIMEOUT = rc=$$?; if [ $$rc -eq 124 ] || [ $$rc -eq 137 ]; then echo "$(TIMEOUT_MSG)" | tee -a run.log; fi; exit $$rc
+# It also appends the seed marker, after the simulator so that vsim -l (which
+# starts run.log afresh) cannot lose it, and so it is there whether the run
+# finished or was killed. 124 = GNU timeout expired, 137 = SIGKILL after the
+# -k grace period.
+CHECK_TIMEOUT = rc=$$?; echo "$(SEED_MSG)" | tee -a run.log; if [ $$rc -eq 124 ] || [ $$rc -eq 137 ]; then echo "$(TIMEOUT_MSG)" | tee -a run.log; fi; exit $$rc
 
 # Same, for a run that keeps no run.log of its own (uart under Verilator):
 # report on stdout only instead of dropping a stray log in the work folder.
-CHECK_TIMEOUT_NOLOG = rc=$$?; if [ $$rc -eq 124 ] || [ $$rc -eq 137 ]; then echo "$(TIMEOUT_MSG)"; fi; exit $$rc
+CHECK_TIMEOUT_NOLOG = rc=$$?; echo "$(SEED_MSG)"; if [ $$rc -eq 124 ] || [ $$rc -eq 137 ]; then echo "$(TIMEOUT_MSG)"; fi; exit $$rc

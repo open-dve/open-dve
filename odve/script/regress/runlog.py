@@ -15,6 +15,9 @@ _MESSAGE_RE = re.compile(r"^[#\s]*(UVM_(?:ERROR|FATAL)\s+(?!:).*?)\s*$", re.M)
 # log stops mid-run, or is empty when the kill landed during startup, so it
 # has no summary of its own to explain the failure.
 _TIMEOUT_RE = re.compile(r"^[#\s]*\*\*\* ODVE_TIMEOUT:\s*(.*?)\s*$", re.M)
+# The seed marker the Makefiles append after the simulator (run.mk SEED_MSG):
+# a random seed per run is only useful if the log says which one it was.
+_SEED_RE = re.compile(r"^[#\s]*\*\*\* ODVE_SEED:\s*(\d+)\s*$", re.M)
 # Tool-level failures, for logs with no UVM message at all: Questa's
 # "** Error: ..." / "** Fatal: ..." and Verilator's "%Error: ...".
 _TOOL_ERR_RE = re.compile(r"^[#\s]*(?:\*\*\s*(?:Error|Fatal)\b.*|%Error.*?)$", re.M)
@@ -28,6 +31,7 @@ class RunStatus:
     fatals: int = None
     last_error: str = None      # text of the last UVM_ERROR/UVM_FATAL message seen
     timed_out: bool = False
+    seed: str = None            # the run's seed from its ODVE_SEED marker, if the log has one
 
     @property
     def verdict(self):
@@ -64,13 +68,29 @@ def extract_error(path, fallback=None):
     return fallback or "no error message found in run.log"
 
 
+def read_seed(path):
+    """The seed a run's log records (its ODVE_SEED marker), or None."""
+    text = _read(path)
+    if text is None:
+        return None
+    m = _SEED_RE.findall(text)
+    return m[-1] if m else None
+
+
 def parse_run_log(path, returncode=0):
     """Judge a run: make must have exited 0, the log must exist and end with a
     UVM report summary, and that summary must count zero errors and fatals.
     A log carrying the ODVE_TIMEOUT marker failed on the clock, which is
     reported instead of the missing summary it also has. The last error message
     in the log is kept for the status line (with +UVM_MAX_QUIT_COUNT=1 it is
-    the one that stopped the simulation)."""
+    the one that stopped the simulation), and so is the run's seed, so that a
+    failure can be re-run with the same one."""
+    status = _judge(path, returncode)
+    status.seed = read_seed(path)
+    return status
+
+
+def _judge(path, returncode):
     if not os.path.isfile(path):
         return RunStatus(False, f"no run.log at {path}" if returncode == 0
                          else f"make exited {returncode}, no run.log at {path}")
