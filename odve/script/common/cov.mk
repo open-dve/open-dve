@@ -15,7 +15,15 @@
 # odve_cov_pkg.sv includes. It never fails the build because of the model: an
 # unsupported covergroup becomes a stub plus a warning.
 #
-# CCOV=1 (tool code coverage) is reserved for phase 3 of the plan.
+# CCOV=1 turns on the simulator's own code coverage: Verilator builds with
+# --coverage and every run writes coverage.dat next to run.log; Questa
+# analyses with -cover sbcefx3 -covercells and simulates with -coverage,
+# saving cov.ucdb - which ModelSim Starter refuses ("not licensed for Code
+# Coverage"), loudly, as it should. Without CCOV=1 no coverage flag reaches
+# any tool.
+#
+#   make cov            merge every dump under this work dir and write cov/index.html
+#                       (add CCOV=1 to include the Verilator coverage.dat files)
 
 FCOV     ?=
 CCOV     ?=
@@ -43,6 +51,30 @@ ifeq ($(FCOV),1)
     COV_RUN_OPTS = +odve_cov_dump=cov.dump +odve_cov_test=$(TESTNAME) +odve_cov_every=$(COVEVERY)
     COV_ALL_CMD  = acov
 endif
+
+CCOV_VLOG_OPTS  =
+CCOV_BUILD_OPTS =
+CCOV_RUN_OPTS   =
+RUN_DO_CCOV     =
+ifeq ($(CCOV),1)
+    CCOV_VLOG_OPTS  = -cover sbcefx3 -covercells
+    CCOV_BUILD_OPTS = --coverage
+    CCOV_RUN_OPTS   = -coverage
+    RUN_DO_CCOV     = coverage save -onexit cov.ucdb;
+endif
+
+# Reports over everything under the current work dir: each run directory
+# holding a cov.dump (final or checkpoint) contributes, and with CCOV=1 the
+# coverage.dat files too.
+# `cov` regenerates covmap.json first (acov is a sub-second scan): a `make
+# clean` in between would otherwise have taken it away; a model that changed
+# since the dumps were written is reported by merge as a hash mismatch.
+COV_OUT ?= cov
+.PHONY: cov
+cov : acov
+	mkdir -p $(COV_OUT)
+	$(PYTHON) $(COVGEN) merge $(COV_DIR)/covmap.json $$(ls -d */cov.dump* 2>/dev/null | xargs -n1 dirname | sort -u) -o $(COV_OUT)/cov.db.json
+	$(PYTHON) $(COVGEN) report $(COV_OUT)/cov.db.json -o $(COV_OUT) -q $(if $(filter 1,$(CCOV)),--code-cov $$(ls */coverage.dat 2>/dev/null),)
 
 .PHONY: acov
 acov :

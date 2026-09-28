@@ -23,7 +23,7 @@ BUILD_OPTS = \
 	-j $(NPROC) \
 	-o $(BIN) \
 	--top-module $(TOP) \
-	$(COV_DEFS)
+	$(COV_DEFS) $(CCOV_BUILD_OPTS)
 
 # UVM's DPI shim (regex/cmdline/HDL-backdoor); linked in directly since
 # Verilator has no simulator-native equivalent to preload like Questa's

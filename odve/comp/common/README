@@ -33,8 +33,10 @@ Without `FCOV=1` both macros expand to nothing and the block is never
 compiled - the default build does not change. With `FCOV=1` the `acov` build
 step (`script/cov/covgen.py scan`) parses the covergroups on the TB filelist
 (`include` followed) and generates `build/cov/odve_cov_gen_classes.svh`; the
-run writes `<RUN_DIR>/cov.dump`; `covgen.py merge` + `report` turn the dumps
-into text/HTML/UCIS-XML reports with per-bin test attribution.
+run writes `<RUN_DIR>/cov.dump`; `./regress.py <list> -cov` (or `make cov`)
+turns the dumps into `cov/index.html`, `cov.html`, `cov.txt`, `cov.xml`
+(UCIS) with per-bin test attribution, holes and the minimal test set;
+`-ccov` adds the simulator's code coverage where it exists (Verilator).
 
 Supported covergroup subset (the rest becomes a stub class that warns once at
 run time - the build never breaks): `with function sample(<integral args>)`,

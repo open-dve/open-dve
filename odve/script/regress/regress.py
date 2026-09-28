@@ -15,6 +15,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import time
 
 
@@ -97,12 +98,22 @@ def main():
                         help="Print only the last LINES lines of each log (default: whole log)")
     parser.add_argument("-quiet", "-q", "--quiet", action="store_true",
                         help="Print only the status line per run, not its run.log")
+    parser.add_argument("-cov", "--cov", action="store_true",
+                        help="Functional coverage: build and run with FCOV=1, then merge every run's dump and "
+                             "write cov/index.html (cov.html, cov.txt, cov.xml ...) next to the run dirs")
+    parser.add_argument("-ccov", "--ccov", action="store_true",
+                        help="Code coverage: build and run with CCOV=1 (Verilator: coverage.dat per run, "
+                             "reported into cov/code/; Questa needs a licensed edition)")
     parser.add_argument("-exer", "--exer", action="store_true",
                         help="Extract errors: after the summary, re-read every failed run's "
                              "run.log and print its test name, error message and make command")
 
     args = parser.parse_args()
     maxj = args.max_jobs
+    if args.cov:
+        args.ropts = (args.ropts + " FCOV=1").strip()
+    if args.ccov:
+        args.ropts = (args.ropts + " CCOV=1").strip()
 
     tlist=f"{cwd}/../rlist/{args.top_list}.list"
     print (f"file.list is : {tlist}")
@@ -203,9 +214,58 @@ def main():
         else:
             print("-exer: every run passed, no errors to extract.")
 
+    if args.cov or args.ccov:
+        coverage_report(args, names, cmdsj)
+
     if failed:
         print("One or more regression runs failed: " + ", ".join(failed))
         exit(1)
+
+
+def coverage_report(args, names, cmdsj):
+    """After the runs: merge the dumps (and the Verilator coverage.dat files)
+    into cov/ and print one line. Coverage trouble never changes the exit
+    code - the tests decide that - but it is said out loud."""
+    covgen = os.path.join(odve, "script", "cov", "covgen.py")
+    out = os.path.join(cwd, "cov")
+    run_dirs = [os.path.join(cwd, list2json.run_dir(n, cmdsj[n]["cmd"])) for n in names]
+    print(f"\n{RULE}")
+    if args.cov:
+        covmap = os.path.join(cwd, "build", "cov", "covmap.json")
+        dbfile = os.path.join(out, "cov.db.json")
+        os.makedirs(out, exist_ok=True)
+        r = subprocess.run([sys.executable, covgen, "merge", covmap] + run_dirs + ["-o", dbfile],
+                           capture_output=True, text=True)
+        for line in (r.stdout + r.stderr).splitlines():
+            if "skipped" in line:
+                print(line)
+        if not os.path.isfile(dbfile):
+            print("coverage: merge failed:\n" + (r.stdout + r.stderr).strip())
+            return
+        cmd = [sys.executable, covgen, "report", dbfile, "-o", out, "-q"]
+        if args.ccov:
+            dats = [d for d in run_dirs if os.path.isfile(os.path.join(d, "coverage.dat"))]
+            if dats:
+                cmd += ["--code-cov"] + dats
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        for line in (r.stdout + r.stderr).splitlines():
+            if line.startswith("[ODVE_COV]") or "code coverage" in line:
+                print(line)
+        try:
+            d = json.load(open(dbfile))
+            print(f"functional cov: {100.0 * d['covered'] / d['n'] if d['n'] else 0.0:.1f}% "
+                  f"({d['covered']}/{d['n']} bins" + (f", {len(d['skipped'])} covergroup(s) skipped" if d['skipped'] else "")
+                  + f") -> {out}/index.html")
+        except (OSError, ValueError, KeyError):
+            print("coverage: report failed:\n" + (r.stdout + r.stderr).strip())
+    elif args.ccov:
+        dats = [d for d in run_dirs if os.path.isfile(os.path.join(d, "coverage.dat"))]
+        if not dats:
+            print("code coverage: no coverage.dat in any run dir (Verilator writes one with CCOV=1; ModelSim Starter cannot)")
+            return
+        r = subprocess.run([sys.executable, covgen, "codecov"] + dats + ["-o", out], capture_output=True, text=True)
+        text = (r.stdout + r.stderr).strip()
+        print(text.splitlines()[-1] if text else "code coverage: no output")
 
 
 if __name__ == "__main__":

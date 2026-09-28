@@ -23,3 +23,6 @@ odve/comp/agents/*/vrf/work/*/cov/
 # python bytecode, anywhere
 __pycache__/
 *.pyc
+# simulator code-coverage output per run (CCOV=1)
+odve/comp/agents/*/vrf/work/*/*/coverage.dat
+odve/comp/agents/*/vrf/work/*/*/cov.ucdb
