@@ -7,7 +7,10 @@ moment that job finishes, while the rest keep running; a summary table follows
 once all of them are done. Every run gets RUN_OPTS+=+UVM_MAX_QUIT_COUNT=1 so a
 simulation stops at its first UVM error, unless the list entry or -ropts sets
 +UVM_MAX_QUIT_COUNT itself; other UVM plusargs go the same way, e.g.
--ropts="RUN_OPTS+=+UVM_VERBOSITY=UVM_HIGH". Each run is also capped at
+-ropts="RUN_OPTS+=+UVM_VERBOSITY=UVM_HIGH". Every run gets its own random
+seed (make's SEED, see script/common/run.mk) unless -ropts="SEED=<n>" or the
+list entry pins one; the seed is shown on each status line and, with -exer,
+with the command that re-runs the failure under it. Each run is also capped at
 TIMEOUT minutes by the Makefiles (default 180, see script/common/run.mk);
 a run killed on the clock says so in its verdict."""
 import sys
@@ -34,6 +37,18 @@ from readlist  import readlist
 from list2json import list2json
 from jobrunner import JobRunner
 from runlog    import parse_run_log, extract_error
+
+
+def seed_tag(status):
+    """" seed=<n>" for a status line, empty when the log carried no marker."""
+    return f"  seed={status.seed}" if status.seed else ""
+
+
+def repro_cmd(result, status):
+    """The make command that re-runs this job with the same seed: make takes
+    the last assignment on its command line, so SEED= appended to the
+    original command pins the seed and changes nothing else."""
+    return f"{result.command} SEED={status.seed}" if status.seed else result.command
 
 cwd=os.getcwd()
 RULE = "=" * 78
@@ -93,7 +108,9 @@ def main():
                              'e.g. -ropts="RUN_OPTS+=+UVM_VERBOSITY=UVM_HIGH"; giving '
                              '+UVM_MAX_QUIT_COUNT there replaces the default '
                              f'"{DEFAULT_PLUSARGS}". Other make variables work too, '
-                             'e.g. -ropts="TIMEOUT=30" for a 30-minute cap per run')
+                             'e.g. -ropts="TIMEOUT=30" for a 30-minute cap per run, or '
+                             '-ropts="SEED=101" to run the whole list under one seed instead of '
+                             'a random seed per run')
     parser.add_argument("-tail", "--tail", type=int, default=0, metavar="LINES",
                         help="Print only the last LINES lines of each log (default: whole log)")
     parser.add_argument("-quiet", "-q", "--quiet", action="store_true",
@@ -165,7 +182,7 @@ def main():
         status = parse_run_log(log, result.returncode)
         statuses[result.name] = (status, result, log)
         print(f"\n{RULE}")
-        print(f"[{done}/{total}] {result.name}: {status.verdict}  ({result.seconds:.1f}s)  {status.reason}")
+        print(f"[{done}/{total}] {result.name}: {status.verdict}  ({result.seconds:.1f}s)  {status.reason}{seed_tag(status)}")
         if status.last_error:
             print(f"  last: {status.last_error}")
         print(f"  log : {log}")
@@ -191,7 +208,7 @@ def main():
     width = max(len(n) for n in names)
     for name in names:
         status, result, log = statuses[name]
-        line = f"{status.verdict}  {name:<{width}}  {result.seconds:7.1f}s  {status.reason}"
+        line = f"{status.verdict}  {name:<{width}}  {result.seconds:7.1f}s  {status.reason}{seed_tag(status)}"
         if not status.passed and status.last_error:
             line += f"\n      last: {status.last_error}"
         print(line)
@@ -208,7 +225,9 @@ def main():
                 test = test_name(cmdsj[name]["cmd"])
                 print(f"TestName: {name}" + (f" ({test})" if test else ""))
                 print(f"ErrorMsg: {extract_error(log, status.reason)}")
+                print(f"Seed    : {status.seed or 'not recorded (no ODVE_SEED marker in the log)'}")
                 print(f"Cmd     : {result.command}")
+                print(f"Repro   : {repro_cmd(result, status)}")
                 print(f"Log     : {log}")
                 print(THIN)
         else:

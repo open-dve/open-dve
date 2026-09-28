@@ -75,9 +75,9 @@ lint: $(COV_ALL_CMD)
 
 run:
 	mkdir -p $(RUN_DIR)
-	@echo "run: $(if $(TIMEOUT_CMD),time limit $(strip $(TIMEOUT)) min,$(TIMEOUT_NOTE))"
-	cd $(RUN_DIR); $(TIMEOUT_CMD) ./../obj_dir/$(BIN) $(TEST_PLUSARG) $(RUN_OPTS) $(COV_RUN_OPTS) > run.log 2>&1; \
-		rc=$$?; cat run.log; \
+	@echo "run: $(if $(TIMEOUT_CMD),time limit $(strip $(TIMEOUT)) min,$(TIMEOUT_NOTE)); $(SEED_NOTE)"
+	cd $(RUN_DIR); $(TIMEOUT_CMD) ./../obj_dir/$(BIN) $(TEST_PLUSARG) $(RUN_OPTS) +verilator+seed+$(SEED) $(COV_RUN_OPTS) > run.log 2>&1; \
+		rc=$$?; echo "$(SEED_MSG)" >> run.log; cat run.log; \
 		if [ $$rc -eq 124 ] || [ $$rc -eq 137 ]; then echo "$(TIMEOUT_MSG)" | tee -a run.log; exit $$rc; fi; \
 		if [ $$rc -ne 0 ]; then echo "*** $(BIN) exited $$rc"; exit $$rc; fi; \
 		if grep -qE '^UVM_(ERROR|FATAL) *: *[1-9]' run.log; then \

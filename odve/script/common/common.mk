@@ -36,6 +36,7 @@ endif
 RUN_OPTS +=
 
 MK_RUN_OPTS+=+UVM_TESTNAME=$(TESTNAME) \
+-sv_seed $(SEED) \
 -L dut $(COV_RUN_OPTS) $(CCOV_RUN_OPTS)
 #MK_RUN_OPTS+=-sv_lib ${ODVE_UVM}/src/dpi
 
@@ -288,7 +289,7 @@ prerun : mkdir_run
 
 
 run : prerun 
-	@echo "run: $(if $(TIMEOUT_CMD),time limit $(strip $(TIMEOUT)) min,$(TIMEOUT_NOTE))"
+	@echo "run: $(if $(TIMEOUT_CMD),time limit $(strip $(TIMEOUT)) min,$(TIMEOUT_NOTE)); $(SEED_NOTE)"
 	cd $(RUN_DIR); \
 	$(TIMEOUT_CMD) vsim tb.$(TOP) \
 		$(RUN_OPTS) \
