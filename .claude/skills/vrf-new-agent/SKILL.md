@@ -5,9 +5,7 @@ description: Scaffold a brand-new UVM verification agent (protocol block) under 
 
 # Scaffolding a new odve agent
 
-Every agent in `odve/comp/agents/` is supposed to look the same, but today they don't: `apb` extends `ocdve_common_component`/`ocdve_common_driver`/`ocdve_common_monitor` from an `ocdve_common_pkg` that **doesn't exist anywhere in the repo** (grep for it — it's a dangling reference, apb doesn't currently compile), uses a flat `src/` with a top-level `item/`, and has several copy-paste bugs (`slave_driver.sv`'s tasks are defined under the wrong class name, a class named `oocdve_apb_seq_item` with a stray `o`, a `puvm_phase` typo). `axi` instead extends plain UVM base classes (`uvm_agent`/`uvm_driver`/`uvm_monitor`/`uvm_sequencer`) with no common-component layer, and nests `item/` and `mst/slv/mon/` under `src/agent/`.
-
-**`axi`'s pattern is the one to standardize on going forward** — it's self-consistent and doesn't depend on missing framework code. Do not copy `apb`'s structure or its `ocdve_`-prefixed naming for new agents.
+Every agent in `odve/comp/agents/` follows one layout — the one this script generates. `apb` is the complete reference of it (plain `uvm_*` base classes, `src/item/` + `src/agent/{mon,mst,slv}` + `seq/`, a DUT, env with scoreboard, tests, the agent's covergroup in its package). `apb` also still carries dead leftovers of an older attempt (`src/ocdve_apb_*.sv`, `item/ocdve_apb_seq_item.sv`, `intf/apb_if.sv` — `ocdve_` prefix, a nonexistent `ocdve_common_pkg`, on no filelist): never copy those.
 
 ## Use the scaffold script, don't hand-build the tree
 

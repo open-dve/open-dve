@@ -476,6 +476,23 @@ the formerly always-on `-cover sbcefx3 -covercells` under a switch and adds
 with the licence error, visible through `-exer`; default gates unchanged.
 Left for later: illegal-hit counts in the store (today they are `UVM_ERROR`s
 in the logs only), a time-based checkpoint trigger, and the svunit tests.
+
+### Phase 4 — done (2026-09-28)
+
+The pilot needed real traffic, and apb had none: its `src/` was a dead
+draft. It is now a real agent in the scaffold's layout — APB3 interface,
+item with `user_randomize()`, master driver, monitor, sequencer, sequences
+(read / write / mixed, out-of-range addresses optional), an APB3 slave DUT
+(16 registers, a wait state every third transfer, `pslverr` out of range),
+an env with a scoreboard (register-file model) and three tests. The
+covergroup `odve_apb_cg` (direction, address incl. out-of-range, `pslverr`,
+direction transitions, direction × error cross) is declared **in the
+agent's package** and sampled by its monitor — coverage travels with the
+reusable component. `submit -cov`: 29/29 bins = 100 % on both simulators,
+attribution per test, `analyze --min` shows `read_test` adds no bin over
+`rw_test` + `write_test`. Found on the way: the repo's `` `odve_rand ``
+macro was defined with a space before its parameter list (a macro without
+parameters), unusable until now — fixed.
 Native mode (licensed tools compiling the blocks as covergroups) stays phase
 6: it needs generated wrappers with the covergroup's own arity, and the
 covergroup type is declared after `odve_cov_pkg` in compilation order.
