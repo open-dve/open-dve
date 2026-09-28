@@ -6,6 +6,9 @@ package odve_apb_agent_pkg;
     import uvm_pkg::*;
     import odve_apb_item_pkg::*;
 
+    typedef enum { ODVE_APB_MASTER, ODVE_APB_SLAVE }     odve_apb_role_e;
+    typedef enum { ODVE_APB_SLV_MEM, ODVE_APB_SLV_SEQ }  odve_apb_slv_mode_e;   // memory in the driver / in a sequence
+
     // Functional coverage of the agent's bus traffic (doc/fcov-plan.md 4.1):
     // a real covergroup at package scope, sampled by the monitor through
     // `odve_cov_sample. With FCOV=1 the build turns it into
@@ -27,6 +30,7 @@ package odve_apb_agent_pkg;
     `include "mst/odve_apb_mst_drv_base.sv"
     `include "slv/odve_apb_slv_drv.sv"
     `include "odve_apb_sqr.sv"
+    `include "odve_apb_slv_sqr.sv"
     `include "odve_apb_agent.sv"
 endpackage
 `endif

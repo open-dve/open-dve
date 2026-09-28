@@ -5,10 +5,12 @@ package odve_apb_seq_lib_pkg;
     `include "odve_macro.sv"
     import uvm_pkg::*;
     import odve_apb_item_pkg::*;
+    import odve_apb_agent_pkg::*;    // the slave sequencer type, for the responding sequence
 
     `include "odve_apb_base_seq.sv"
     `include "odve_apb_write_seq.sv"
     `include "odve_apb_read_seq.sv"
     `include "odve_apb_rw_seq.sv"
+    `include "odve_apb_slv_mem_seq.sv"
 endpackage
 `endif

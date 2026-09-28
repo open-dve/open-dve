@@ -1,0 +1,40 @@
+# apb - the reference agent
+
+APB3 master and slave agent in the layout `new_agent.sh` produces; the
+complete example of the framework (agent + DUT + env/scoreboard + tests +
+functional coverage). See `AGENTS.md` for the layout.
+
+## Roles and modes (`odve_apb_cfg`)
+
+| `role` | what the agent has | `slv_mode` |
+| --- | --- | --- |
+| `ODVE_APB_MASTER` | sequencer + master driver (`mst/`), monitor | - |
+| `ODVE_APB_SLAVE` | slave driver (`slv/`), monitor unless `has_mon = 0` | `ODVE_APB_SLV_MEM`: autonomous - the memory (`nregs` words, `pslverr` beyond, a wait state every `wait_every`-th transfer) lives in the driver, no sequencer needed |
+| | + slave sequencer `odve_apb_slv_sqr` (request fifo) | `ODVE_APB_SLV_SEQ`: reactive - the driver publishes each request into the sequencer's `req_fifo`; a responding sequence (`seq/odve_apb_slv_mem_seq.sv`, or your own) owns the memory and answers with data / `slverr` / `wait_states` |
+
+Both slave modes behave like the RTL slave in `vrf/dut/dut.sv`, so the
+scoreboard's register-file model holds for all three.
+
+## The standalone testbench (`vrf/`)
+
+Master agent on `odve_apb_if`, and one of three slaves chosen at run time:
+
+    +apb_slave=dut   the RTL slave (default)
+    +apb_slave=mem   the slave agent, memory in its driver
+    +apb_slave=seq   the slave agent, memory in the responding sequence
+
+`tb/top.sv` routes the DUT's outputs or the agent's `s_pready/s_prdata/
+s_pslverr` onto the bus (one continuous driver per signal - no tristates,
+Verilator-safe); `tb/env/cc.sv` reads the same plusarg to build the slave
+agent (`has_mon = 0`: the bus is observed by the master agent's monitor
+only); `base_test` forks the responder sequence in `seq` mode. Tests:
+`read_test` (write, then read back), `write_test` (writes incl.
+out-of-range), `rw_test` (mixed). `rlist/submit.list` runs `rw_test` in all
+three slave modes.
+
+Functional coverage: `odve_apb_cg` in `src/agent/odve_apb_agent_pkg.sv`,
+sampled by the monitor - `./regress.py submit -cov` (29 bins: direction,
+address incl. out-of-range, `pslverr`, direction transitions, direction x
+error). Build/run: `cd vrf/work/run && source sourceme && make aclean all
+run TESTNAME=rw_test` (add `VERILATOR=1` for Verilator, `FCOV=1` for
+coverage).

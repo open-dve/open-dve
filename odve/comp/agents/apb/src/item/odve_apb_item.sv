@@ -8,6 +8,7 @@ class odve_apb_item extends uvm_sequence_item;
     bit [31:0] data;      // pwdata for a write, prdata after a read
     bit        write;
     bit        slverr;    // filled in by the driver / seen by the monitor
+    int unsigned wait_states = 0;   // slave response only: cycles of pready low before the transfer completes
 
     // Knobs for user_randomize(): word index range of the slave's registers,
     // and whether out-of-range addresses (which the slave answers with

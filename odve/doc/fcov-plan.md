@@ -493,6 +493,14 @@ attribution per test, `analyze --min` shows `read_test` adds no bin over
 `rw_test` + `write_test`. Found on the way: the repo's `` `odve_rand ``
 macro was defined with a space before its parameter list (a macro without
 parameters), unusable until now — fixed.
+
+Follow-up (same day): the agent got a **slave role** with two modes —
+autonomous (memory in the driver) and reactive (slave sequencer with a
+request fifo, memory in the responding sequence `odve_apb_slv_mem_seq`) —
+selectable per run with `+apb_slave=dut|mem|seq`; `submit` runs `rw_test`
+against all three slaves, 100 % on both simulators. One trap: a component
+named `req_fifo` under a `uvm_sequencer` collides with UVM 1.1d's own
+`m_req_fifo` instance name (`CLDEXT` fatal).
 Native mode (licensed tools compiling the blocks as covergroups) stays phase
 6: it needs generated wrappers with the covergroup's own arity, and the
 covergroup type is declared after `odve_cov_pkg` in compilation order.

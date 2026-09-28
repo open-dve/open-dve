@@ -1,3 +1,5 @@
-apb_read  : TESTNAME=read_test
-apb_write : TESTNAME=write_test
-apb_rw    : TESTNAME=rw_test
+apb_read   : TESTNAME=read_test
+apb_write  : TESTNAME=write_test
+apb_rw     : TESTNAME=rw_test
+apb_rw_mem : TESTNAME=rw_test RUN_OPTS+=+apb_slave=mem
+apb_rw_seq : TESTNAME=rw_test RUN_OPTS+=+apb_slave=seq
