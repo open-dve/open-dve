@@ -1,7 +1,10 @@
 #!/bin/bash
-# Scaffold a new odve UVM agent under comp/agents/<proto>, following the
-# axi agent's structure/naming convention (plain uvm_agent/uvm_driver/
-# uvm_monitor/uvm_sequencer — no ocdve_common_* layer).
+# Scaffold a new odve UVM agent under comp/agents/<proto>, in the layout the
+# apb agent (the complete reference) follows: plain uvm_agent/uvm_driver/
+# uvm_monitor/uvm_sequencer, a covergroup skeleton in the agent package
+# sampled by the monitor (functional coverage, doc/fcov-plan.md), and a
+# vrf/ that builds on both simulators (Makefile for Questa, Makefile.veri +
+# fl.f for Verilator).
 #
 # Usage: run from the open-dve repo root:
 #   .claude/skills/vrf-new-agent/scripts/new_agent.sh <proto>
@@ -112,6 +115,12 @@ class odve_${PROTO}_mon extends uvm_monitor;
     uvm_analysis_port #(odve_${PROTO}_item) item_collected_port;
     virtual odve_${PROTO}_if vif;
 
+    // Functional coverage: the covergroup is declared in odve_${PROTO}_agent_pkg
+    // (package scope, \`ifdef ODVE_COV_NATIVE); with FCOV=1 the build generates
+    // odve_cov_pkg::odve_cov_odve_${PROTO}_cg from it and these two macros are
+    // the whole hook. Without FCOV=1 both expand to nothing.
+    \`odve_cov_create(odve_${PROTO}_cg)
+
     function new(string name = "odve_${PROTO}_mon", uvm_component parent = null);
         super.new(name, parent);
     endfunction
@@ -122,7 +131,9 @@ class odve_${PROTO}_mon extends uvm_monitor;
     endfunction
 
     virtual task run_phase(uvm_phase phase);
-        // TODO: sample vif and item_collected_port.write(tr) per transaction
+        // TODO: per transaction: build tr from vif, then
+        //   \`odve_cov_sample(odve_${PROTO}_cg, tr.kind)
+        //   item_collected_port.write(tr);
     endtask
 endclass
 EOF
@@ -208,8 +219,19 @@ cat > "$AGENT/src/agent/odve_${PROTO}_agent_pkg.sv" <<EOF
 \`define ODVE_${PROTO_UPPER}_AGENT_PKG
 package odve_${PROTO}_agent_pkg;
     \`include "uvm_macros.svh"
+    \`include "odve_macro.sv"
     import uvm_pkg::*;
     import odve_${PROTO}_item_pkg::*;
+
+    // Functional coverage of the agent's traffic (doc/fcov-plan.md 4.1): a
+    // real covergroup at package scope, sampled by the monitor through
+    // \`odve_cov_sample. Keep to the supported subset (comp/common/README);
+    // anything else becomes a stub with a warning, never a broken build.
+\`ifdef ODVE_COV_NATIVE
+    covergroup odve_${PROTO}_cg with function sample(int kind);
+        cp_kind: coverpoint kind { bins kind[] = {[0:3]}; }   // TODO: the real points and bins
+    endgroup
+\`endif
 
     \`include "odve_${PROTO}_cfg.sv"
     \`include "mon/odve_${PROTO}_mon.sv"
@@ -225,6 +247,7 @@ EOF
 # list/ (agent compile filelists)
 # ---------------------------------------------------------------------------
 cat > "$AGENT/list/agent.f" <<EOF
++incdir+\${ODVE}/comp/common/macro
 +incdir+\${ODVE}/comp/agents/${PROTO}/src/item
 +incdir+\${ODVE}/comp/agents/${PROTO}/src/agent
 +incdir+\${ODVE}/comp/agents/${PROTO}/src/agent/mon
@@ -255,10 +278,17 @@ endmodule
 EOF
 
 cat > "$AGENT/vrf/list/fl_tb.f" <<EOF
--f \${ODVE}/comp/agents/${PROTO}/list/agent.f
-
 +incdir+\${ODVE_UVM}/src/
++incdir+\${ODVE}/comp/common/macro/
 +incdir+\${ODVE}/comp/agents/${PROTO}/vrf/tb/env/
++incdir+\${ODVE}/comp/agents/${PROTO}/vrf/tb/tests/
+
+// functional coverage runtime, first: the agent's monitor names odve_cov_pkg::
+// (compiles to nothing without FCOV=1, see script/common/cov.mk)
+\${ODVE}/comp/common/cov/odve_cov_pkg.sv
+\${ODVE}/comp/common/cov/odve_cov_final.sv
+
+-f \${ODVE}/comp/agents/${PROTO}/list/agent.f
 
 \${ODVE}/comp/agents/${PROTO}/vrf/tb/env/env_pkg.sv
 \${ODVE}/comp/agents/${PROTO}/vrf/tb/tests/test_pkg.sv
@@ -274,6 +304,13 @@ cat > "$AGENT/vrf/list/fl_uvm.f" <<EOF
 +incdir+\${ODVE_UVM}/src/
 \${ODVE_UVM}/src/uvm_macros.svh
 \${ODVE_UVM}/src/uvm_pkg.sv
+EOF
+
+# Verilator consumes one flattened list (Questa the three above)
+cat > "$AGENT/vrf/list/fl.f" <<EOF
+-f \${ODVE}/comp/agents/${PROTO}/vrf/list/fl_uvm.f
+-f \${ODVE}/comp/agents/${PROTO}/vrf/list/fl_dut.f
+-f \${ODVE}/comp/agents/${PROTO}/vrf/list/fl_tb.f
 EOF
 
 # ---------------------------------------------------------------------------
@@ -406,6 +443,10 @@ module top;
 
     odve_${PROTO}_if odve_${PROTO}_if ();
 
+\`ifdef ODVE_FCOV
+    odve_cov_final cov_final ();    // writes the functional-coverage dump at \`final (FCOV=1 only)
+\`endif
+
     initial repeat (1) \$display ("Hello From TB");
     initial begin
         uvm_config_db #(uvm_object_wrapper)::set(null, "*", "uvm_test_top", simple_test::type_id::get());
@@ -417,10 +458,12 @@ EOF
 # ---------------------------------------------------------------------------
 # vrf/work/{common,run,mini,check}
 # ---------------------------------------------------------------------------
-cat > "$AGENT/vrf/work/common/sourceme" <<'EOF'
+cat > "$AGENT/vrf/work/common/sourceme" <<EOF
 #!/bin/bash
-export ODVE=$(readlink -f "../../../../../../")
-source $ODVE/script/source/common_sourceme
+export ODVE=\$(readlink -f "../../../../../../")
+export PROJ=\$(readlink -f "../../../../../../comp/agents/${PROTO}")
+export ODVE_${PROTO_UPPER}=\$PROJ
+source \$ODVE/script/source/common_sourceme
 EOF
 
 cat > "$AGENT/vrf/work/common/Makefile" <<'EOF'
@@ -457,6 +500,10 @@ COV_CMD=
 include ${ODVE}/script/common/common.mk
 EOF
 
+# Verilator build rules: apb's Makefile.veri is generic (no agent-specific
+# content), so the scaffold takes a copy rather than carrying a second one.
+cp odve/comp/agents/apb/vrf/work/common/Makefile.veri "$AGENT/vrf/work/common/Makefile.veri"
+
 for variant in run check mini; do
     cat > "$AGENT/vrf/work/$variant/sourceme" <<'EOF'
 #!/bin/bash
@@ -464,7 +511,15 @@ source ./../common/sourceme
 EOF
     cat > "$AGENT/vrf/work/$variant/Makefile" <<'EOF'
 #Please go to common folder to edit local regression settings.
-include ./../common/Makefile
+ifdef VERILATOR
+	VERI := 1
+endif
+
+ifndef VERI
+	include ./../common/Makefile
+else
+	include ./../common/Makefile.veri
+endif
 EOF
     cat > "$AGENT/vrf/work/$variant/regress.py" <<'EOF'
 #!/usr/bin/env python3
@@ -482,8 +537,8 @@ chmod +x "$AGENT/vrf/work/common/sourceme"
 # vrf/work/rlist
 # ---------------------------------------------------------------------------
 for list in mini check submit; do
-    cat > "$AGENT/vrf/work/rlist/$list.list" <<'EOF'
-run_name1 : TESTNAME=simple_test COMP_DIR=d1
+    cat > "$AGENT/vrf/work/rlist/$list.list" <<EOF
+${PROTO}_simple : TESTNAME=simple_test
 EOF
 done
 
