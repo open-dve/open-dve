@@ -12,5 +12,6 @@ package odve_apb_seq_lib_pkg;
     `include "odve_apb_read_seq.sv"
     `include "odve_apb_rw_seq.sv"
     `include "odve_apb_slv_mem_seq.sv"
+    `include "odve_apb_cov_emu_seq.sv"    // FCOV=1 only
 endpackage
 `endif

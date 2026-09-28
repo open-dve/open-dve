@@ -22,6 +22,7 @@ Master agent on `odve_apb_if`, and one of three slaves chosen at run time:
     +apb_slave=dut   the RTL slave (default)
     +apb_slave=mem   the slave agent, memory in its driver
     +apb_slave=seq   the slave agent, memory in the responding sequence
+    +apb_slave=cov   the functional-coverage emulation block (odve_cov_emu)
 
 `tb/top.sv` routes the DUT's outputs or the agent's `s_pready/s_prdata/
 s_pslverr` onto the bus (one continuous driver per signal - no tristates,
@@ -29,8 +30,12 @@ Verilator-safe); `tb/env/cc.sv` reads the same plusarg to build the slave
 agent (`has_mon = 0`: the bus is observed by the master agent's monitor
 only); `base_test` forks the responder sequence in `seq` mode. Tests:
 `read_test` (write, then read back), `write_test` (writes incl.
-out-of-range), `rw_test` (mixed). `rlist/submit.list` runs `rw_test` in all
-three slave modes.
+out-of-range), `rw_test` (mixed), `cov_emu_test` (mixed traffic against the coverage
+block, then - with `FCOV=1` - `odve_apb_cov_emu_seq` reads the counters
+back over APB, compares them with the package store the block was fed
+from and writes the run's `cov.dump` from them; no scoreboard in this
+mode, the block's counters are not a register file). `rlist/submit.list`
+runs `rw_test` in the three slave modes plus `cov_emu_test`.
 
 Functional coverage: `odve_apb_cg` in `src/agent/odve_apb_agent_pkg.sv`,
 sampled by the monitor - `./regress.py submit -cov` (29 bins: direction,

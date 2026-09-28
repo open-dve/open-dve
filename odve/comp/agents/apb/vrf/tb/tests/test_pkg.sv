@@ -14,6 +14,7 @@ package test_pkg;
     `include "read_test.sv"
     `include "write_test.sv"
     `include "rw_test.sv"
+    `include "cov_emu_test.sv"
 endpackage
 
 `endif

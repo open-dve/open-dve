@@ -7,6 +7,7 @@
 // (compiles to nothing without FCOV=1, see script/common/cov.mk)
 ${ODVE}/comp/common/cov/odve_cov_pkg.sv
 ${ODVE}/comp/common/cov/odve_cov_final.sv
+${ODVE}/comp/common/cov/odve_cov_emu_feed.sv
 
 -f ${ODVE}/comp/agents/apb/list/agent.f
 -f ${ODVE}/comp/agents/apb/list/seq.f
