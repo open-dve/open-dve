@@ -16,9 +16,25 @@
 `define ODVE_COVCNT 1
 `endif
 
+// Reporting (used inside the package only). With UVM (the default) an ODVE_COV_ERR is a uvm_error; without
+// it (+define+ODVE_COV_NO_UVM: unit tests, testbenches that do not use UVM)
+// it is a $display. Either way odve_cov_errors counts them, so a test can
+// check that an error was raised without parsing a log.
+`ifdef ODVE_COV_NO_UVM
+`define ODVE_COV_ERR(msg)  begin odve_cov_errors++; $display("ODVE_COV ERROR: %s", msg); end
+`define ODVE_COV_WARN(msg) $display("ODVE_COV WARNING: %s", msg);
+`else
+`define ODVE_COV_ERR(msg)  begin odve_cov_errors++; `uvm_error("ODVE_COV", msg) end
+`define ODVE_COV_WARN(msg) `uvm_warning("ODVE_COV", msg)
+`endif
+
 package odve_cov_pkg;
+`ifndef ODVE_COV_NO_UVM
     import uvm_pkg::*;
     `include "uvm_macros.svh"
+`endif
+
+    int odve_cov_errors = 0;   // ODVE_COV_ERRs raised so far
 
     localparam int N = `ODVE_COV_N;      // total bins over all groups (flat layout)
     localparam int W = `ODVE_COVCNT;     // bits per counter: 1 = hit/not hit, 32 = hit count
@@ -67,12 +83,12 @@ package odve_cov_pkg;
         // The one hot path: increment a bin, saturating.
         static function void hit(int idx);
             if (idx < 0 || idx >= N) begin
-                `uvm_error("ODVE_COV", $sformatf("bin index %0d out of range (N=%0d) - ignored", idx, N))
+                `ODVE_COV_ERR($sformatf("bin index %0d out of range (N=%0d) - ignored", idx, N))
                 return;
             end
             if (cnt[idx] != {W{1'b1}}) cnt[idx] = cnt[idx] + 1'b1;
             nsamples++;
-            if (every != 0 && (nsamples % every) == 0) checkpoint();
+            if (every != 0 && (nsamples % longint'(every)) == 0) checkpoint();
         endfunction
 
         // Dump format (doc/fcov-plan.md 4.2): header lines, "idx count" for
@@ -81,7 +97,7 @@ package odve_cov_pkg;
         static function void write(string path, string tag);
             int fd = $fopen(path, "w");
             if (fd == 0) begin
-                `uvm_warning("ODVE_COV", $sformatf("cannot open %s for writing", path))
+                `ODVE_COV_WARN($sformatf("cannot open %s for writing", path))
                 return;
             end
             $fwrite(fd, "# odve-cov 1\n");
@@ -171,13 +187,13 @@ package odve_cov_pkg;
         endfunction
 
         function void illegal(string point, longint value);
-            `uvm_error("ODVE_COV", $sformatf("%s.%s: illegal bin hit by value %0d", name, point, value))
+            `ODVE_COV_ERR($sformatf("%s.%s: illegal bin hit by value %0d", name, point, value))
         endfunction
 
         // A generated sample() calls this on its spare formals.
         function void check_spare(longint a, int pos);
             if (a != NA)
-                `uvm_error("ODVE_COV", $sformatf("%s: sample() called with an argument in position %0d, but the covergroup declares fewer", name, pos))
+                `ODVE_COV_ERR($sformatf("%s: sample() called with an argument in position %0d, but the covergroup declares fewer", name, pos))
         endfunction
     endclass
 

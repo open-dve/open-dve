@@ -26,3 +26,7 @@ __pycache__/
 # simulator code-coverage output per run (CCOV=1)
 odve/comp/agents/*/vrf/work/*/*/coverage.dat
 odve/comp/agents/*/vrf/work/*/*/cov.ucdb
+# svunit work dirs of `make ut` (script/common/ut.mk)
+**/ut/work_modelsim/
+**/ut/work_verilator/
+**/ut/*.dump*
