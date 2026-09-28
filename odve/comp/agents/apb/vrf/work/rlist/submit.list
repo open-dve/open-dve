@@ -1,1 +1,3 @@
-apb_read : TESTNAME=read_test
+apb_read  : TESTNAME=read_test
+apb_write : TESTNAME=write_test
+apb_rw    : TESTNAME=rw_test

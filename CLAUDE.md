@@ -19,11 +19,11 @@ The imported `AGENTS.md` is the primary guide (repo purpose, commands, per-agent
 
 ## Agent state (as of the current tree)
 
-- `apb`: the only agent with a full UVM `vrf/`. Its `vrf/tb/tests/test_pkg.sv` includes **only `read_test`** (`write_test.sv`/`simple_test.sv` exist on disk but aren't included; there is no `base_test.sv`). `common.mk`'s default `TESTNAME=base_test` therefore fails — run `make run TESTNAME=read_test`. `top.sv` hardcodes `run_test("read_test")` for the Verilator no-`TESTNAME` case. `vrf/tb/env/env_pkg.sv` is empty.
+- `apb`: the reference agent, canonical layout (`intf/odve_apb_if.sv`, `src/item/`, `src/agent/{mon,mst,slv}`, `seq/`), plain `uvm_*` base classes, no `rand`/constraints (`odve_apb_item::user_randomize()` via `` `odve_rand ``). `vrf/`: APB3 slave DUT (16 registers, a wait state every third transfer, `pslverr` out of range), `env` with the agent + scoreboard (register-file model, checks read data and `pslverr`), tests `base_test`/`read_test`/`write_test`/`rw_test`, lists `submit` (all three) and `mini` (`rw_test`). The agent's monitor samples the covergroup `odve_apb_cg` declared in `odve_apb_agent_pkg` — coverage lives in the reusable component, not in the TB. `make run` default `TESTNAME=base_test` now exists but runs no traffic.
+- `apb`'s old flat `src/ocdve_apb_*.sv`, `item/ocdve_apb_seq_item.sv` and `intf/apb_if.sv` are **dead** (nonexistent `ocdve_common_pkg`, on no filelist) — superseded by the canonical files; delete rather than fix.
 - `apb`'s `src/` (`ocdve_apb_*` classes extending the nonexistent `ocdve_common_pkg`) is **not compiled by its own `vrf/`**: `list/agent.f` lists only `intf/apb_if.sv`. Adding `src/` to a filelist will break the build until those base classes exist.
 - `axi`: has `intf/`, `src/`, `tb/` but no `vrf/work` — cannot be built with the standard flow. `ahb`, `jtag`, `spi`: README-only placeholders.
 - `uart`: non-UVM; `vrf/work/common/Makefile` overrides `ALL_CMD`, `elib`, `prerun`, `run` to drop the `uvm` library and DPI. Only `work/run` exists (no `mini`/`rlist`).
-- `vrf/work/rlist/*.list` for `apb` currently contains a single `read_test` entry in both `mini.list` and `submit.list`.
 
 ## Regression runner
 

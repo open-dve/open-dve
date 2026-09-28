@@ -1,1 +1,9 @@
-${ODVE}/comp/agents/apb/intf/apb_if.sv
++incdir+${ODVE}/comp/common/macro
++incdir+${ODVE}/comp/agents/apb/src/item
++incdir+${ODVE}/comp/agents/apb/src/agent
++incdir+${ODVE}/comp/agents/apb/src/agent/mon
++incdir+${ODVE}/comp/agents/apb/src/agent/mst
++incdir+${ODVE}/comp/agents/apb/src/agent/slv
+${ODVE}/comp/agents/apb/intf/odve_apb_if.sv
+${ODVE}/comp/agents/apb/src/item/odve_apb_item_pkg.sv
+${ODVE}/comp/agents/apb/src/agent/odve_apb_agent_pkg.sv
