@@ -125,6 +125,8 @@ As each run finishes it prints a `[k/N] <name>: PASS|FAIL (<secs>) <reason>` lin
 
 Regression output lands in `RUN_DIR` named after the list entry (e.g. `apb_read/`), not `<TESTNAME>__run/`.
 
+**Functional coverage** is opt-in: `-ropts="FCOV=1"` (or `make ... FCOV=1`) makes the build generate the coverage classes from the covergroups in the sources (`acov` step) and every run write `cov.dump` next to `run.log`. After the regression, merge and report by hand for now: `python3 $ODVE/script/cov/covgen.py merge build/cov/covmap.json apb_read ... -o cov.db.json && python3 $ODVE/script/cov/covgen.py report cov.db.json -o cov/` — quote `cov.txt` (per-point percentages, `--` marks uncovered bins, the tests that hit each bin). A `[ODVE_COV] warning: ... skipped` line from `acov` or a `UVM_WARNING [ODVE_COV] ... no coverage collected` in a log means a covergroup was outside the supported subset (`odve/doc/fcov-plan.md` §4.1): the build is fine, but that group's coverage is absent — say so rather than reporting the percentage as complete. If you edit a covergroup or anything under `comp/common/cov/`, `script/cov/` or `cov.mk`, run apb with `FCOV=1` on **both** simulators and the unit tests (`cd odve/script/cov && python3 -m unittest discover -s . -p "test_*.py"`).
+
 If you changed `odve/script/regress/` itself (`regress.py`, `readlist.py`, `list2json.py`, `jobrunner.py`), exercise it against a real list (e.g. `apb`'s `submit`) **under both simulators**, since `-ropts` and the command construction affect both.
 
 ## 5. Gate on git commit and push

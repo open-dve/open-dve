@@ -1,1 +1,46 @@
+# comp/common - what every agent shares
 
+| Directory | Contents |
+| --- | --- |
+| `base/` | `odve_common_base_item.sv` - base sequence item (placeholder today). |
+| `macro/` | `odve_macro.sv` - the framework macros: `` `odve_rand(obj) `` (calls `obj.user_randomize()`, since ModelSim SE has no constraint solver), `` `odve_cov_create(name) `` and `` `odve_cov_sample(name, args...) `` (functional coverage, below). |
+| `cov/` | Functional-coverage runtime, compiled only with `FCOV=1`: `odve_cov_pkg.sv` (package-static counter store `odve_cov_store`, the base class `odve_cov_group` of the generated groups, the table lookups `find_bin()`/`find_trans()`) and `odve_cov_final.sv` (the one-line module that writes the dump at `final` - a package cannot hold a `final` block). |
+| `func/`, `pkg/` | Placeholders. |
+
+## Functional coverage in three lines
+
+Write the covergroup where the values are, in standard syntax, at package
+scope, inside an `ODVE_COV_NATIVE` block; declare the group object as a class
+property with `` `odve_cov_create ``; sample with `` `odve_cov_sample ``:
+
+```systemverilog
+`ifdef ODVE_COV_NATIVE
+covergroup apb_cg with function sample(int len, bit dir);
+    cp_len: coverpoint len { bins one = {1}; bins some = {[2:4]}; ignore_bins zero = {0}; }
+    cp_dir: coverpoint dir { bins rd = {0}; bins wr = {1}; }
+    x_len_dir: cross cp_len, cp_dir;
+endgroup
+`endif
+
+class my_monitor extends uvm_monitor;
+    `odve_cov_create(apb_cg)                        // -> odve_cov_pkg::odve_cov_apb_cg apb_cg_i = new("apb_cg");
+    ...
+    `odve_cov_sample(apb_cg, item.len, item.dir)   // -> apb_cg_i.sample(item.len, item.dir, NA, ...);
+endclass
+```
+
+Without `FCOV=1` both macros expand to nothing and the block is never
+compiled - the default build does not change. With `FCOV=1` the `acov` build
+step (`script/cov/covgen.py scan`) parses the covergroups on the TB filelist
+(`include` followed) and generates `build/cov/odve_cov_gen_classes.svh`; the
+run writes `<RUN_DIR>/cov.dump`; `covgen.py merge` + `report` turn the dumps
+into text/HTML/UCIS-XML reports with per-bin test attribution.
+
+Supported covergroup subset (the rest becomes a stub class that warns once at
+run time - the build never breaks): `with function sample(<integral args>)`,
+`coverpoint <arg> [iff (<arg>)]`, bins of values/ranges/`$`, `b[]` arrays,
+`wildcard`, `ignore_bins`/`illegal_bins`, `default`, transitions
+`(a => b => c)`, `option.at_least`/`weight`, `cross` with
+`ignore_bins`/`illegal_bins` over `binsof()` (`&&`, `||`, `!`). Details,
+rationale and the measured limits of both simulators: `odve/doc/fcov-plan.md`;
+reference usage: `comp/agents/apb/vrf/tb/tests/read_test.sv`.
