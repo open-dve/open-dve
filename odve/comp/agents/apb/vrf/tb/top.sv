@@ -3,6 +3,9 @@ module top;
     import test_pkg::*;
 
     apb_if apb_if ();
+`ifdef ODVE_FCOV
+    odve_cov_final cov_final ();    // writes the functional-coverage dump at `final (FCOV=1 only)
+`endif
 
     initial repeat (1) $display ("Hello From TB");
     // Точка входа для запуска UVM теста

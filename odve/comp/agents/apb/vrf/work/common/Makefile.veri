@@ -4,6 +4,7 @@ VRF ?=$(PROJ)/vrf
 
 # Shared run settings (TIMEOUT, GUI) - the same file common.mk includes.
 include ${ODVE}/script/common/run.mk
+include ${ODVE}/script/common/cov.mk
 
 BIN=Vtop
 NPROC=4
@@ -21,7 +22,8 @@ BUILD_OPTS = \
 	-O3 \
 	-j $(NPROC) \
 	-o $(BIN) \
-	--top-module $(TOP)
+	--top-module $(TOP) \
+	$(COV_DEFS)
 
 # UVM's DPI shim (regex/cmdline/HDL-backdoor); linked in directly since
 # Verilator has no simulator-native equivalent to preload like Questa's
@@ -43,14 +45,14 @@ else
 endif
 
 clean:
-	rm -rf obj_dir
+	rm -rf obj_dir $(COV_DIR)
 
 rclean:
 	rm -rf ./*__run
 
 aclean: clean rclean
 
-all:
+all: $(COV_ALL_CMD)
 	$(VERILATOR_ROOT)/bin/verilator $(BUILD_OPTS) -F $(VRF)/list/fl.f $(DPI_SRCS)
 
 LINT_OPTS = \
@@ -58,13 +60,14 @@ LINT_OPTS = \
 	--timescale 1ns/1ps \
 	--timing \
 	-Wno-fatal \
-	--top-module $(TOP)
+	--top-module $(TOP) \
+	$(COV_DEFS)
 
 # Parse and elaborate only, no C++: a syntax or type error surfaces in seconds
 # instead of after the multi-minute build. Same warning policy as `all`, so a
 # clean lint is exactly the front half of a clean build. Full output lands in
 # lint.log; the terminal gets the %Error blocks and the counts.
-lint:
+lint: $(COV_ALL_CMD)
 	@$(VERILATOR_ROOT)/bin/verilator $(LINT_OPTS) -F $(VRF)/list/fl.f > lint.log 2>&1; rc=$$?; \
 		grep -E -A3 '^%Error' lint.log; \
 		echo "lint: $$(grep '^%Error' lint.log | grep -vc 'Exiting due to') error(s), $$(grep -c '^%Warning' lint.log) warning(s) - full output in lint.log"; \
@@ -73,7 +76,7 @@ lint:
 run:
 	mkdir -p $(RUN_DIR)
 	@echo "run: $(if $(TIMEOUT_CMD),time limit $(strip $(TIMEOUT)) min,$(TIMEOUT_NOTE))"
-	cd $(RUN_DIR); $(TIMEOUT_CMD) ./../obj_dir/$(BIN) $(TEST_PLUSARG) $(RUN_OPTS) > run.log 2>&1; \
+	cd $(RUN_DIR); $(TIMEOUT_CMD) ./../obj_dir/$(BIN) $(TEST_PLUSARG) $(RUN_OPTS) $(COV_RUN_OPTS) > run.log 2>&1; \
 		rc=$$?; cat run.log; \
 		if [ $$rc -eq 124 ] || [ $$rc -eq 137 ]; then echo "$(TIMEOUT_MSG)" | tee -a run.log; exit $$rc; fi; \
 		if [ $$rc -ne 0 ]; then echo "*** $(BIN) exited $$rc"; exit $$rc; fi; \
