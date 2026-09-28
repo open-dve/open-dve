@@ -460,29 +460,39 @@ cp_en 2/2, x_w_en 3/5), default and `FCOV=1` `submit` PASS on both.
 
 Not delivered from the phase-1 list: svunit tests of `odve_cov_store` — they
 need the `vrf/work/ut` flow, which does not exist yet (tracked with phase 3).
+
+### Phase 3 — done (2026-09-28)
+
+`regress.py -cov` / `-ccov`, `make cov`, `covgen.py report` with the own
+single-file `cov.html` (groups, bins, test attribution, holes, greedy minimal
+test set, runs), `cov.xml` (own UCIS writer), `cov.yaml`, `index.html`;
+`codecov` for Verilator's `coverage.dat` through `verilator_coverage
+--write-info` and an own lcov renderer (`cov/code/`, UVM/std excluded by
+default); `analyze --holes --tests --min`; `export`; `env`. `CCOV=1` moved
+the formerly always-on `-cover sbcefx3 -covercells` under a switch and adds
+`--coverage` / `-coverage`. Verified on both simulators: apb `submit -cov`
+72.4 % on both, `-cov -ccov` on Verilator adds code coverage (lines 89.3 %,
+167/187 over the six TB files), `-ccov` on ModelSim Starter fails the run
+with the licence error, visible through `-exer`; default gates unchanged.
+Left for later: illegal-hit counts in the store (today they are `UVM_ERROR`s
+in the logs only), a time-based checkpoint trigger, and the svunit tests.
 Native mode (licensed tools compiling the blocks as covergroups) stays phase
 6: it needs generated wrappers with the covergroup's own arity, and the
 covergroup type is declared after `odve_cov_pkg` in compilation order.
 
 ## 9. Portability and offline release
 
-The target environment may have no internet, so the release must carry
-everything `covgen.py` needs — the same idea as `verilator-docker/prebuilt/`:
-
-- `script/cov/requirements.txt` — pinned versions (`pyucis`, `pyyaml`, and
-  their transitive dependencies, resolved once);
-- `script/cov/pack.sh` (maintainers, online): `pip download` of every wheel
-  for the supported targets (pure-Python wheels cover all; any binary wheel
-  is downloaded for `manylinux_x86_64` **and** `win_amd64`), plus the lcov
-  tarball (pure Perl) for `genhtml`, into `script/cov/prebuilt/`, committed;
-- `covgen.py env --setup` (users, offline): creates `script/cov/.venv` with
-  the host's `python3` and installs `--no-index --find-links prebuilt/`,
-  writes `cov.env` next to it, which `common_sourceme` sources like
-  `native.env`; `env --check` reports what is missing;
-- everything else is the standard library; `merge`/`txt` never need the venv.
-
-Python ≥ 3.9 is already a prerequisite of the framework. On Windows the flow
-is Python-only, so it should just work — to be verified once, like the rest.
+Decided in phase 3, after measuring: `pyucis` drags in ~40 packages and
+18 MB of wheels, six of them binary (lxml, cryptography, pydantic-core, ...),
+per platform — vendoring that for offline hosts is not worth it for an XML
+writer and an HTML page. So **`covgen.py` and `covlib` use the standard
+library only** (Python ≥ 3.9): the UCIS 1.0 XML is written by our own
+`covlib/ucisxml.py` (same element structure pyucis produces), the HTML by
+`covlib/report.py` and `covlib/lcov.py` (the lcov `.info` renderer replaces
+`genhtml`, so no Perl either). `pyucis` stays optional: when present
+(`--pyucis` / `PYUCIS`), `report` adds its `cov_pyucis.html`. Nothing to
+install, nothing to pack: `covgen.py env` reports what the host provides
+(Python, `verilator_coverage` for `CCOV=1`, `pyucis` if any).
 
 ## 10. Risks and open questions
 

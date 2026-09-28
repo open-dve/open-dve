@@ -23,9 +23,9 @@ include $(dir $(lastword $(MAKEFILE_LIST)))cov.mk
 # What vsim is told to do. GUI=1 hands the session to the user: keep the
 # simulator open (no `quit`) and drop the -batch that the agent Makefile
 # forces for regressions, so the GUI can actually come up.
-RUN_DO ?= run -all; quit;
+RUN_DO ?= $(RUN_DO_CCOV) run -all; quit;
 ifeq ($(GUI),1)
-    RUN_DO = run -all;
+    RUN_DO = $(RUN_DO_CCOV) run -all;
     override RUN_OPTS := $(filter-out -batch -c,$(RUN_OPTS)) -gui
 endif
 
@@ -36,7 +36,7 @@ endif
 RUN_OPTS +=
 
 MK_RUN_OPTS+=+UVM_TESTNAME=$(TESTNAME) \
--L dut $(COV_RUN_OPTS)
+-L dut $(COV_RUN_OPTS) $(CCOV_RUN_OPTS)
 #MK_RUN_OPTS+=-sv_lib ${ODVE_UVM}/src/dpi
 
 ###COMPILE options
@@ -231,7 +231,7 @@ predut :
 
 auvm : 
 	cd $(COMP_DIR) ;\
-	vlog -reportprogress 300 -work uvm -sv -covercells -cover sbcefx3 \
+	vlog -reportprogress 300 -work uvm -sv $(CCOV_VLOG_OPTS) \
 	-f $(FL_UVM) \
 
 
@@ -240,12 +240,12 @@ auvm :
 	
 adut :  
 	cd $(COMP_DIR) ;\
-	vlog -reportprogress 300 -work dut -sv -covercells -cover sbcefx3 \
+	vlog -reportprogress 300 -work dut -sv $(CCOV_VLOG_OPTS) \
 	-f $(FL_DUT)
 
 atb : 
 	cd $(COMP_DIR) ;\
-	vlog -reportprogress 300 -work tb -sv -covercells -cover sbcefx3 \
+	vlog -reportprogress 300 -work tb -sv $(CCOV_VLOG_OPTS) \
 	$(COV_DEFS) \
 	-f $(FL_TB) \
 	-L dut -L uvm
