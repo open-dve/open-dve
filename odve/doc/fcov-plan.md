@@ -389,6 +389,81 @@ memory increment. No strings, no dynamic allocation.
 
 Phases 1–3 can proceed in parallel after the spike; 4 needs all three.
 
+## 8a. Phase 0 — spike results (2026-09-27)
+
+Branch `feature/fcov-spike`. Hand-written collector + base package
+(`comp/common/cov/`), a generated-style group class and map for `apb`
+(`vrf/tb/cov/`), `cov.mk`, and `covgen.py merge`/`report`. Everything below
+was run on this host, both simulators.
+
+| Check | ModelSim Starter | Verilator 5.052 |
+| --- | --- | --- |
+| `make aclean all run FCOV=1` | OK, `UVM_ERROR 0` | OK, `UVM_ERROR 0` |
+| `final` dump under UVM's `$finish` | written, 9/14 bins as the pattern predicts | identical dump |
+| kill by `TIMEOUT` (0.02 min, `COVEVERY=1000`) | `final` skipped, checkpoints `cov.dump.0/1` (`# end 34/35`), merge takes 35 | same, merge takes checkpoint 699 |
+| default build (no `FCOV`) `./regress.py submit` | PASS, build flags unchanged | PASS |
+| `./regress.py submit -ropts="FCOV=1"` | PASS + complete dump | PASS + complete dump |
+| `make lint` with and without `FCOV=1` | 0 errors | 0 errors |
+| merge Questa + Verilator dumps → `cov.txt`, `attribution.html`, pyucis `cov.yaml` → `cov.xml` + `cov.html` | 64.3%, per-bin test lists, holes marked | |
+
+Sampling cost (Verilator, 2 000 000 iterations of a `#1` loop, 3 runs each):
+2.48 s without `FCOV`, 3.83 s with `FCOV=1` — 5.5 M `hit()` calls, 2 M
+`sample()` calls each doing two table lookups and a cross: **~0.25 µs per
+hit, ~0.7 µs per `sample()`**. Checkpoints every 100 000 hits (55 of them)
+added 0.02 s. The relative figure looks large only because the loop body is
+a bare `#1`; per transaction in a real TB it is noise.
+
+Deviations from the design above, all kept for phase 1:
+
+- **no interface at all**: the store (counters, `hit()`, dump, checkpoints) is
+  package-static (`odve_cov_pkg::odve_cov_store`) — a plain static call from
+  the group, no virtual interface, no `uvm_config_db`. The one thing a
+  package cannot hold by the LRM is a `final` block, so `odve_cov_final` (a
+  three-line module, one instance in top under `ODVE_FCOV`) writes the last
+  dump. The emulation variant (phase 6) becomes a second store behind the
+  same static API;
+- **`sample` keeps its natural form**, `` `odve_cov_sample(cg, item.len, item.dir) ``:
+  the macro accepts up to 8 values and fills the unused positions with the
+  sentinel `odve_cov_pkg::NA`; a generated `sample()` declares its spare
+  formals with that default, so the call is always complete and a value in
+  a spare position is reported as an arity error (verified: `UVM_ERROR ...
+  sample() called with an argument in position 3, but the covergroup
+  declares fewer`);
+- the `acov` step joins `ALL_CMD` only under `FCOV=1` and fills `$(COV_DIR)`
+  (`build/cov`, `+incdir` absolute because vlog runs inside `build/`); for
+  the spike it copies the hand-written stand-ins from `vrf/tb/cov/gen.spike/`,
+  phase 1 replaces the copy with `covgen.py scan`;
+- bin tables as `longint` dynamic arrays passed by `ref` to one generic
+  `find_bin()` work on both tools — the "tables, not code" approach of §3.4
+  holds;
+- two tool traps met on the way: a comment beginning with `// Verilator ...`
+  is parsed by Verilator as a pragma, and a trailing `# comment` on a make
+  assignment leaves the blanks before it in the value.
+
+### Phase 1 — done (2026-09-28, PR #16)
+
+`covgen.py scan` replaced the hand-written stand-ins: the covergroup text
+lives in the source (`ifdef ODVE_COV_NATIVE` block at package scope, as in
+§4.1), `acov` parses it at build time and generates the class, the tables and
+`covmap.json`. Delivered: `script/cov/covlib` (model, filelist reader with
+`include expansion, covergroup-subset parser, generator; 34 unittest cases),
+the runtime lookups `find_bin()` (value/range, wildcard, default) and
+`find_trans()`, the stub policy end to end (a missing or unsupported group
+builds, warns once at run time and is listed as skipped in the report), and
+`merge`/`report` on covmap v2 (ignored cross bins out of the totals,
+`at_least` decides "covered").
+
+Verified on both simulators with apb's two covergroups — the second one
+exercising transition, wildcard, default, `iff` and a cross filter: identical
+dumps, **21/29 bins = 72.4 % exactly as hand-computed** (cp_tr 5/5, cp_w 2/3,
+cp_en 2/2, x_w_en 3/5), default and `FCOV=1` `submit` PASS on both.
+
+Not delivered from the phase-1 list: svunit tests of `odve_cov_store` — they
+need the `vrf/work/ut` flow, which does not exist yet (tracked with phase 3).
+Native mode (licensed tools compiling the blocks as covergroups) stays phase
+6: it needs generated wrappers with the covergroup's own arity, and the
+covergroup type is declared after `odve_cov_pkg` in compilation order.
+
 ## 9. Portability and offline release
 
 The target environment may have no internet, so the release must carry
