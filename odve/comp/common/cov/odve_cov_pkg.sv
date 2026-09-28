@@ -1,13 +1,14 @@
-// Functional-coverage runtime (phase-0 spike, see odve/doc/fcov-plan.md).
+// Functional-coverage runtime (doc/fcov-plan.md). Everything is
+// package-static: the flat memory of bin counters, hit(), the dump and
+// checkpoint logic, and the base class of the generated coverage groups.
+// The generated classes themselves (odve_cov_gen_classes.svh, written by
+// `covgen.py scan` into $(COV_DIR) at build time) are included at the end of
+// this package, so a testbench refers to them as odve_cov_pkg::odve_cov_<name>.
 //
-// Everything is package-static: the flat memory of bin counters, hit(), the
-// dump/checkpoint logic and the base class of the generated coverage groups.
-// No interface, no config_db: a group calls odve_cov_store::hit() directly.
-// The only thing a package cannot do by the LRM is a `final` block - that is
-// the one-line module odve_cov_final, instantiated in top.
+// The only thing a package cannot hold by the LRM is a `final` block - that
+// is the one-line module odve_cov_final, instantiated in top.
 //
-// Compiled to nothing without FCOV=1 (+define+ODVE_FCOV). odve_cov_gen.svh
-// is generated into $(COV_DIR) by the `acov` build step and sizes the store.
+// Compiled to nothing without FCOV=1 (+define+ODVE_FCOV).
 `ifdef ODVE_FCOV
 `include "odve_cov_gen.svh"
 
@@ -33,8 +34,11 @@ package odve_cov_pkg;
     localparam int BIN_IGNORE  = -2;
     localparam int BIN_ILLEGAL = -3;
 
-    // kind[] values in the bin tables
-    localparam byte BK_BIN = 0, BK_IGNORE = 1, BK_ILLEGAL = 2;
+    // Row kinds of the generated lo/hi/kind/bidx tables (covlib/gen.py):
+    // *_WILD rows match (value & hi) == lo with hi holding the care mask,
+    // DEFAULT matches whatever no other coverage row matched.
+    localparam byte K_BIN = 0, K_IGNORE = 1, K_ILLEGAL = 2,
+                    K_BIN_WILD = 3, K_IGNORE_WILD = 4, K_ILLEGAL_WILD = 5, K_DEFAULT = 6;
 
     // ------------------------------------------------------------ the store
     class odve_cov_store;
@@ -108,7 +112,7 @@ package odve_cov_pkg;
     // One coverage group = one covergroup of the model. The generated
     // subclass owns the bin tables of its points and a sample() with the
     // covergroup's own argument list (plus NA-defaulted spares); this base
-    // only provides the lookup and the reporting.
+    // only provides the lookups and the reporting.
     virtual class odve_cov_group;
         string name;
 
@@ -117,22 +121,53 @@ package odve_cov_pkg;
             odve_cov_store::init();
         endfunction
 
-        // Table-driven value -> bin: a point's bins are parallel arrays
-        // lo[]/hi[]/kind[] (a value bin has lo == hi; ranges are inclusive).
-        // Returns the index among the point's *coverage* bins (kind BK_BIN,
-        // in table order), or BIN_IGNORE / BIN_ILLEGAL / BIN_NONE.
-        // Ignore and illegal entries are checked first, as the LRM has it.
-        static function int find_bin(longint value, ref longint lo[], ref longint hi[], ref byte kind[]);
-            int nb = 0;
-            for (int i = 0; i < lo.size(); i++)
-                if (kind[i] != BK_BIN && value >= lo[i] && value <= hi[i])
-                    return (kind[i] == BK_IGNORE) ? BIN_IGNORE : BIN_ILLEGAL;
+        // Table-driven value -> bin over one point's rows (lo, hi, kind, bidx):
+        // a value/range row matches lo <= value <= hi, a wildcard row matches
+        // (value & hi) == lo. Ignore/illegal rows are checked first, as the
+        // LRM has it; then the coverage rows in table order; then a default
+        // row. Returns the coverage bin index (bidx of the row), or
+        // BIN_IGNORE / BIN_ILLEGAL / BIN_NONE.
+        static function int find_bin(longint value, ref longint lo[], ref longint hi[],
+                                     ref byte kind[], ref int bidx[]);
+            int dflt = BIN_NONE;
             for (int i = 0; i < lo.size(); i++) begin
-                if (kind[i] != BK_BIN) continue;
-                if (value >= lo[i] && value <= hi[i]) return nb;
-                nb++;
+                case (kind[i])
+                    K_IGNORE:       if (value >= lo[i] && value <= hi[i]) return BIN_IGNORE;
+                    K_ILLEGAL:      if (value >= lo[i] && value <= hi[i]) return BIN_ILLEGAL;
+                    K_IGNORE_WILD:  if ((value & hi[i]) == lo[i]) return BIN_IGNORE;
+                    K_ILLEGAL_WILD: if ((value & hi[i]) == lo[i]) return BIN_ILLEGAL;
+                    default: ;
+                endcase
             end
-            return BIN_NONE;
+            for (int i = 0; i < lo.size(); i++) begin
+                case (kind[i])
+                    K_BIN:      if (value >= lo[i] && value <= hi[i]) return bidx[i];
+                    K_BIN_WILD: if ((value & hi[i]) == lo[i]) return bidx[i];
+                    K_DEFAULT:  dflt = bidx[i];
+                    default: ;
+                endcase
+            end
+            return dflt;
+        endfunction
+
+        // Transition bins: hist[] holds the last hist.size() values of the
+        // point (oldest first); tr[] is the flattened sequences, trlen[] their
+        // lengths, trbidx[] the bin each one belongs to. Pushes `value` and
+        // returns the first sequence the history now ends with, or -1.
+        static function int find_trans(longint value, ref longint hist[], ref longint tr[],
+                                       ref int trlen[], ref int trbidx[]);
+            int off = 0;
+            for (int i = 0; i < hist.size() - 1; i++) hist[i] = hist[i + 1];
+            hist[hist.size() - 1] = value;
+            for (int s = 0; s < trlen.size(); s++) begin
+                int len = trlen[s];
+                bit match = (len <= hist.size());
+                for (int k = 0; match && k < len; k++)
+                    if (hist[hist.size() - len + k] != tr[off + k]) match = 0;
+                if (match) return trbidx[s];
+                off += len;
+            end
+            return -1;
         endfunction
 
         function void illegal(string point, longint value);
@@ -145,6 +180,10 @@ package odve_cov_pkg;
                 `uvm_error("ODVE_COV", $sformatf("%s: sample() called with an argument in position %0d, but the covergroup declares fewer", name, pos))
         endfunction
     endclass
+
+    // The generated group classes (covgen.py scan): one per covergroup found
+    // in the sources' `ifdef ODVE_COV_NATIVE blocks, or a stub.
+    `include "odve_cov_gen_classes.svh"
 
 endpackage
 `endif

@@ -9,9 +9,11 @@
 #   ./regress.py submit -ropts="FCOV=1"   the same through a regression
 #
 # With FCOV=1 the build gains the `acov` step (added to ALL_CMD before the TB
-# analysis): it fills $(COV_DIR) with the generated coverage files that
-# odve_cov_pkg.sv includes. PHASE-0 SPIKE: acov copies hand-written stand-ins
-# from $(COV_SRC_DIR); phase 1 replaces the copy with `covgen.py scan`.
+# analysis): `covgen.py scan` reads the sources on $(COV_SCAN_FL), parses the
+# covergroups in their `ifdef ODVE_COV_NATIVE blocks and fills $(COV_DIR) with
+# odve_cov_gen.svh, odve_cov_gen_classes.svh and covmap.json, which
+# odve_cov_pkg.sv includes. It never fails the build because of the model: an
+# unsupported covergroup becomes a stub plus a warning.
 #
 # CCOV=1 (tool code coverage) is reserved for phase 3 of the plan.
 
@@ -24,7 +26,10 @@ COVEVERY ?= 1000000
 # assignments: make keeps the blanks before a '#' as part of the value)
 COMP_DIR    ?= build
 COV_DIR     ?= $(COMP_DIR)/cov
-COV_SRC_DIR ?= $(VRF)/tb/cov/gen.spike
+COV_SCAN_FL ?= $(VRF)/list/fl_tb.f
+COV_MODEL   ?= $(notdir $(PROJ))
+COVGEN      ?= $(ODVE)/script/cov/covgen.py
+PYTHON      ?= python3
 
 COV_DEFS     =
 COV_RUN_OPTS =
@@ -41,5 +46,4 @@ endif
 
 .PHONY: acov
 acov :
-	mkdir -p $(COV_DIR)
-	cp $(COV_SRC_DIR)/odve_cov_gen.svh $(COV_SRC_DIR)/*.map.json $(COV_DIR)/
+	$(PYTHON) $(COVGEN) scan $(addprefix -f ,$(COV_SCAN_FL)) -o $(COV_DIR) --model $(COV_MODEL)

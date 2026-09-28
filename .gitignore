@@ -20,3 +20,6 @@ odve/comp/agents/*/vrf/work/*/*/transcript
 # functional-coverage dumps written per run (FCOV=1); merged reports live in work/<variant>/cov/
 odve/comp/agents/*/vrf/work/*/*/cov.dump*
 odve/comp/agents/*/vrf/work/*/cov/
+# python bytecode, anywhere
+__pycache__/
+*.pyc
