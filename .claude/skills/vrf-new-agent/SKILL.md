@@ -1,11 +1,11 @@
 ---
 name: vrf-new-agent
-description: Scaffold a brand-new UVM verification agent (protocol block) under odve/comp/agents/ so it follows the framework's standard folder structure, file/class naming convention, and Makefile targets (make atb/adut/auvm/elab/all/run). Use this whenever the user asks to add, create, start, or bootstrap a new agent/block/VIP for a protocol (e.g. "add an ahb agent", "start the jtag agent", "create a new agent for spi") — do not hand-build the directory tree from scratch or copy an existing agent wholesale, since the existing agents (apb, axi) are inconsistent with each other and apb references a common-component base class that doesn't exist in this repo.
+description: Scaffold a brand-new UVM verification agent (protocol block) under odve/comp/agents/ so it follows the framework's standard folder structure, file/class naming convention, and Makefile targets (make atb/adut/auvm/elab/all/run). Use this whenever the user asks to add, create, start, or bootstrap a new agent/block/VIP for a protocol (e.g. "add an ahb agent", "start the jtag agent", "create a new agent for spi") — do not hand-build the directory tree from scratch or copy an existing agent wholesale; apb is the complete reference of the layout this script produces.
 ---
 
 # Scaffolding a new odve agent
 
-Every agent in `odve/comp/agents/` follows one layout — the one this script generates. `apb` is the complete reference of it (plain `uvm_*` base classes, `src/item/` + `src/agent/{mon,mst,slv}` + `seq/`, a DUT, env with scoreboard, tests, the agent's covergroup in its package). `apb` also still carries dead leftovers of an older attempt (`src/ocdve_apb_*.sv`, `item/ocdve_apb_seq_item.sv`, `intf/apb_if.sv` — `ocdve_` prefix, a nonexistent `ocdve_common_pkg`, on no filelist): never copy those.
+Every agent in `odve/comp/agents/` follows one layout — the one this script generates. `apb` is the complete reference of it (plain `uvm_*` base classes, `src/item/` + `src/agent/{mon,mst,slv}` + `seq/`, a DUT, env with scoreboard, tests, the agent's covergroup in its package).
 
 ## Use the scaffold script, don't hand-build the tree
 

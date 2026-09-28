@@ -86,7 +86,7 @@ Log     : .../work/run/apb_read/run.log
 
 New source files must be added to the correct `list/*.f` (agent) or `vrf/list/fl_*.f` (TB) — compilation is filelist-driven, not directory-scanned.
 
-`apb` follows this layout and is the reference to copy patterns from; its old flat `src/ocdve_apb_*.sv` / `item/` / `intf/apb_if.sv` are dead leftovers (not on any filelist). `axi` is a stub. When adding a **new** protocol agent, use the `vrf-new-agent` skill (`.claude/skills/vrf-new-agent/`), which scaffolds a working skeleton via `scripts/new_agent.sh <proto>` instead of hand-copying an existing agent.
+`apb` follows this layout and is the reference to copy patterns from. `axi` is a stub. When adding a **new** protocol agent, use the `vrf-new-agent` skill (`.claude/skills/vrf-new-agent/`), which scaffolds a working skeleton via `scripts/new_agent.sh <proto>` instead of hand-copying an existing agent.
 
 ### Compilation model
 
