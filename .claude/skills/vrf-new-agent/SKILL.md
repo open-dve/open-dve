@@ -21,7 +21,8 @@ cd <path to open-dve repo root>          # the dir containing odve/comp/agents
 - `src/agent/odve_<proto>_cfg.sv`, `odve_<proto>_sqr.sv`, `odve_<proto>_agent.sv`, `odve_<proto>_agent_pkg.sv`, plus `mon/odve_<proto>_mon.sv`, `mst/odve_<proto>_mst_drv_base.sv`, `slv/odve_<proto>_slv_drv.sv` — all extending plain `uvm_*` base classes, wired together (agent creates/connects sqr+drv+mon, gets `cfg` via `uvm_config_db`) so it's a real, buildable starting point, not just empty files.
 - `list/agent.f`, `item.f`, `seq.f` — compile filelists already pointing at the generated files.
 - `vrf/dut/dut.sv`, `vrf/list/fl_{tb,dut,uvm}.f`, `vrf/tb/{top.sv,env/*,tests/*}` — a working standalone TB (env with `cc`/`scb` placeholders, `base_test`/`simple_test`) modeled on `axi`'s clean version (with `axi`'s one bug — `endclass : envi` instead of `endclass : env` — fixed).
-- `vrf/work/{common,run,mini,check}/{Makefile,sourceme,regress.py}` and `vrf/work/rlist/{mini,check,submit}.list` — the standard build/run/regress workspace, using the same `readlink -f "../../../../../../"` depth as `apb`'s (correct because the new agent sits at the same directory depth).
+- `vrf/work/{common,run,mini,check}/{Makefile,sourceme,regress.py}` and `vrf/work/rlist/{mini,check,submit}.list` — the standard build/run/regress workspace for **both simulators**: `work/common/Makefile` (Questa, includes `common.mk`), `work/common/Makefile.veri` (a copy of apb's, generic) and `vrf/list/fl.f` for Verilator, variant Makefiles with the `VERILATOR=1` switch; `sourceme` exports `ODVE`, `PROJ` and `ODVE_<PROTO>` with the same `readlink -f "../../../../../../"` depth as `apb`'s (correct because the new agent sits at the same directory depth).
+- **Functional coverage wired in**: the agent package carries a covergroup skeleton (`odve_<proto>_cg`, one `coverpoint kind` to replace) inside an `` `ifdef ODVE_COV_NATIVE `` block, the monitor has `` `odve_cov_create(odve_<proto>_cg) `` and a commented `` `odve_cov_sample `` at the sampling site, `fl_tb.f` lists the coverage runtime before `agent.f`, `top.sv` instantiates `odve_cov_final` under `ODVE_FCOV`. `make ... FCOV=1` / `./regress.py <list> -cov` work on the skeleton as generated (0 bins hit until the monitor samples).
 
 This determinism matters: the trickiest thing to get right by hand is the `sourceme` relative-path depth (`ODVE=$(readlink -f "../../../../../../")`), which silently points at the wrong directory if any nesting level is off. The script gets it right every time because the generated tree is always the same depth.
 
@@ -31,7 +32,8 @@ This determinism matters: the trickiest thing to get right by hand is the `sourc
 2. Fill in the item (`src/item/odve_<proto>_item.sv`) with real transaction fields.
 3. Implement the driver/monitor logic marked `// TODO`.
 4. Any new `.sv` file must be added to the relevant `list/*.f` or `vrf/list/fl_*.f` — compilation in this framework is filelist-driven, not directory-scanned, so a file that exists on disk but isn't listed is silently never compiled.
-5. Use the **vrf-workflow** skill to compile and run (`cd odve/comp/agents/<proto>/vrf/work/run && source sourceme && make aclean all run`), and again before committing/pushing (analyze/compile checks, then `./regress.py submit`).
+5. Fill in the covergroup in `src/agent/odve_<proto>_agent_pkg.sv` (keep to the supported subset, `comp/common/README`) and uncomment the `` `odve_cov_sample `` in the monitor once it builds real transactions.
+6. Use the **vrf-workflow** skill to compile and run on both simulators (`cd odve/comp/agents/<proto>/vrf/work/run && source sourceme && make aclean all run` / `... VERILATOR=1`), and again before committing/pushing (`./regress.py submit` on both, `-cov` for the coverage report).
 
 ## Naming convention reference (for manual edits too, not just scaffolding)
 
