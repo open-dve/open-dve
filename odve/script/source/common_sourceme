@@ -2,10 +2,12 @@
 export ODVE_UVM=${ODVE}/uvm/uvm-1.1d/
 #export ODVE_UVM=${ODVE}/uvm/1800.2-2020-2.0/
 
-# SVUnit, vendored the same way UVM is above. Used by the per-unit
-# vrf/work/ut flow (agent-side ut/ folders with their own svunit.f
-# filelists) - not by the UVM regressions, which never reference it.
+# SVUnit, vendored the same way UVM is above. Used by `make ut` in ut/
+# folders (script/common/ut.mk: *_unit_test.sv + a svunit.f filelist) -
+# not by the UVM regressions, which never reference it.
 export ODVE_SVUNIT=${ODVE}/svunit/svunit-3.38.1/
+export SVUNIT_INSTALL=${ODVE_SVUNIT%/}   # runSVUnit/buildSVUnit read it; `make ut` in any ut/ folder (script/common/ut.mk)
+export PATH="${SVUNIT_INSTALL}/bin:${PATH}"
 # Questa/ModelSim root: the only source is `vsim` found on PATH (resolved
 # through symlinks, so a link in ~/bin works too); empty if Questa isn't
 # installed. Nothing here or in common.mk knows where ModelSim lives - every

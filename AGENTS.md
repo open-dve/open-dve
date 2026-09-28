@@ -65,6 +65,7 @@ Log     : .../work/run/apb_read/run.log
 - `script/regress/` — the regression runner: `regress.py` (entry point), `readlist.py` (parses `*.list` files), `list2json.py` (converts parsed runs to job commands), `jobrunner.py` (parallel job execution), `list2json.py`.
 - `script/cov/` — coverage tooling, standard library only: `covgen.py` (`scan` at build time under `FCOV=1`; `merge`/`report`/`codecov`/`analyze`/`export`/`env` after runs) over `covlib/` (model, filelist reader, covergroup-subset parser, generator, dump merge, UCIS-XML writer, lcov parser/renderer, reports; unit tests in `covlib/tests/`). Design and phases: `odve/doc/fcov-plan.md`.
 - `script/schedule/`, `script/pdf/pdf2req/` — scheduling and requirements-doc tooling (early/placeholder).
+- `svunit/svunit-3.38.1/` — vendored SVUnit for unit tests of SystemVerilog units outside a UVM testbench; `script/common/ut.mk` gives any `ut/` folder (`*_unit_test.sv` + `svunit.f`) a `make ut [VERILATOR=1]` target; `comp/common/cov/ut/` tests the coverage runtime this way.
 - `uvm/` — vendored UVM library sources: `uvm-1.1d` (default, per `common_sourceme`) and `1800.2-2020-2.0` (available, not default). Used instead of relying on a simulator-provided UVM.
 - `vip/` — placeholders for larger VIPs (`pcie`, `nvme`) mentioned in the README's roadmap; not yet implemented.
 

@@ -505,6 +505,33 @@ Native mode (licensed tools compiling the blocks as covergroups) stays phase
 6: it needs generated wrappers with the covergroup's own arity, and the
 covergroup type is declared after `odve_cov_pkg` in compilation order.
 
+### Phase 6a — unit tests of the runtime, done (2026-09-28)
+
+The plan's phase-1 line item "svunit tests" needed a flow that did not
+exist. Now: `script/common/ut.mk` turns any `ut/` folder holding
+`*_unit_test.sv` and a `svunit.f` into `make ut` / `make ut VERILATOR=1`
+(runSVUnit from the vendored SVUnit; `common_sourceme` exports
+`SVUNIT_INSTALL` and puts its `bin` on `PATH`). `comp/common/cov/ut/` runs
+nine tests over `odve_cov_store` (count, saturation at `COVCNT=4`,
+out-of-range index → error and no write), `find_bin` (values, ranges,
+ignore before coverage rows, illegal, wildcard care masks, default),
+`find_trans` (a 3-deep history against two sequences), the dump (checkpoint
+alternation `.1`/`.0` with `# end <seq>`, the final file line by line, no
+files without `+odve_cov_dump`) and `init()`'s plusargs — 9/9 on both
+simulators. To build the runtime without a UVM library it reports through
+`` `ODVE_COV_ERR``/`` `ODVE_COV_WARN`` (`uvm_error`/`uvm_warning`, or
+`$display` under `+define+ODVE_COV_NO_UVM`) and counts errors in
+`odve_cov_pkg::odve_cov_errors`, which is what the tests assert on.
+Found on the way: the vendored svunit scripts were not executable; plain
+`vsim -c` fails with `Licensing failure` on ModelSim Starter here (the
+agents already use `-batch` for that reason — `ut.mk` does too); Verilator
+5.052 rejects two `foreach (x[i])` loops in different out-of-class methods
+of `svunit_testsuite` (`Duplicate declaration of VARSCOPE ...
+i__Vloopsize`) — one loop index renamed, marked `// odve:`.
+
+Left in phase 6: the emulation store behind the same `hit()` (b) and native
+mode (c) — both to be scoped before implementation.
+
 ## 9. Portability and offline release
 
 Decided in phase 3, after measuring: `pyucis` drags in ~40 packages and

@@ -238,7 +238,7 @@ def gen_stub(name, reason, where=""):
            "                         longint a5 = NA, longint a6 = NA, longint a7 = NA, longint a8 = NA);",
            "        if (!warned) begin",
            "            warned = 1;",
-           f"            `uvm_warning(\"ODVE_COV\", {sv_str(name + ': no coverage collected - ' + reason)})",
+           f"            `ODVE_COV_WARN({sv_str(name + ': no coverage collected - ' + reason)})",
            "        end",
            "    endfunction",
            "endclass",
