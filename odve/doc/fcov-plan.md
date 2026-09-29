@@ -529,8 +529,31 @@ agents already use `-batch` for that reason — `ut.mk` does too); Verilator
 of `svunit_testsuite` (`Duplicate declaration of VARSCOPE ...
 i__Vloopsize`) — one loop index renamed, marked `// odve:`.
 
-Left in phase 6: the emulation store behind the same `hit()` (b) and native
-mode (c) — both to be scoped before implementation.
+### Phase 6b — emulation backend, done (2026-09-28)
+
+`comp/common/cov/odve_cov_emu.sv`: the store's flat bin layout as
+synthesizable logic — N saturating W-bit counters, a sample port (one index
+per cycle), APB3 readback: counters at `4*i`, `NSAMPLES`/`N`/`W`/`CTRL` at
+`0xFFF0..0xFFFC` (top of a 64 KiB window, so N can grow without moving
+them; `CTRL` bit0 freeze, bit1 clear), `pslverr` elsewhere, writes to
+counters ignored, no wait states. Host software on an emulator reads it
+into the same `cov.dump` format; `covgen.py` needs no change (`# backend
+emu` in the header is just another key). In simulation the apb TB puts the
+block on the bus as a fourth slave (`+apb_slave=cov`), `odve_cov_emu_feed`
+mirrors every `hit()` of the package store onto the sample port, and
+`odve_apb_cov_emu_seq` — the readback as host software would do it —
+compares every counter and `NSAMPLES` with the store and writes the run's
+dump from the hardware; `cov_emu_test` is in `submit`, 200 samples / 29
+bins / 0 mismatches on both simulators, and the merged coverage stays at
+100 %. Found on the way: a sample hits several bins (five in apb), so the
+one-per-clock port lags the traffic and the readback must poll the feed
+queue empty before freezing — a fixed number of "drain" reads lost 116 of
+200 samples. In an emulation build the feed is absent and synthesizable
+monitors drive the port; that mapping (monitor → bin index tables) is not
+built here.
+
+Left in phase 6: native mode (c), to be scoped when a licensed simulator is
+at hand.
 
 ## 9. Portability and offline release
 

@@ -25,6 +25,10 @@ module odve_cov_store_unit_test;
         store::dump     = "";
         store::test     = "";
         store::inited   = 1;      // plusargs are the subject of one test only
+        store::frozen   = 0;
+        store::ext_dumped = 0;
+        store::emu      = 0;
+        store::smp_q.delete();
         odve_cov_errors = 0;
     endtask
 
@@ -152,6 +156,64 @@ module odve_cov_store_unit_test;
         `FAIL_UNLESS_EQUAL(store::seq, 0)
         `FAIL_UNLESS_EQUAL(store::cnt[3], 2)
         `FAIL_UNLESS_EQUAL(odve_cov_errors, 0)
+    `SVTEST_END
+
+    `SVTEST(frozen_drops_hits_silently)
+        store::hit(2);
+        store::frozen = 1;
+        store::hit(2);
+        store::hit(6);
+        `FAIL_UNLESS_EQUAL(store::cnt[2], 1)
+        `FAIL_UNLESS_EQUAL(store::cnt[6], 0)
+        `FAIL_UNLESS_EQUAL(store::nsamples, 1)
+        `FAIL_UNLESS_EQUAL(odve_cov_errors, 0)
+    `SVTEST_END
+
+    `SVTEST(emu_mirrors_hits_into_the_sample_queue)
+        store::hit(3);                       // emu off: not queued
+        store::emu = 1;
+        store::hit(3);
+        store::hit(7);
+        store::hit(odve_cov_pkg::N);         // out of range: error, not queued
+        store::frozen = 1;
+        store::hit(7);                       // frozen: not queued
+        `FAIL_UNLESS_EQUAL(store::smp_q.size(), 2)
+        `FAIL_UNLESS_EQUAL(store::smp_q[0], 3)
+        `FAIL_UNLESS_EQUAL(store::smp_q[1], 7)
+        `FAIL_UNLESS_EQUAL(store::cnt[3], 2)
+        `FAIL_UNLESS_EQUAL(odve_cov_errors, 1)
+    `SVTEST_END
+
+    `SVTEST(write_ext_writes_the_backend_counts_and_final_dump_yields)
+        string lines[$];
+        int unsigned counts[] = new[odve_cov_pkg::N];
+        bit ok;
+        store::test = "ut_test";
+        counts[5] = 4;
+        counts[15] = 1;
+        store::write_ext("ut_ext.dump", "final", counts, 5, "emu");
+        ok = read_file("ut_ext.dump", lines);
+        `FAIL_UNLESS(ok)
+        `FAIL_UNLESS_EQUAL(lines.size(), 8)
+        `FAIL_UNLESS_STR_EQUAL(lines[3], "# samples 5")
+        `FAIL_UNLESS_STR_EQUAL(lines[4], "# backend emu")
+        `FAIL_UNLESS_STR_EQUAL(lines[5], "5 4")
+        `FAIL_UNLESS_STR_EQUAL(lines[6], "15 1")
+        `FAIL_UNLESS_STR_EQUAL(lines[7], "# end final")
+        // the store's own final dump leaves a file another backend wrote
+        store::dump = "ut_ext.dump";
+        store::ext_dumped = 1;
+        store::hit(1);
+        store::final_dump();
+        ok = read_file("ut_ext.dump", lines);
+        `FAIL_UNLESS(ok)
+        `FAIL_UNLESS_STR_EQUAL(lines[4], "# backend emu")
+        // a wrong size is an error and no file
+        counts = new[3];
+        store::write_ext("ut_ext_bad.dump", "final", counts, 0, "emu");
+        `FAIL_UNLESS_EQUAL(odve_cov_errors, 1)
+        ok = read_file("ut_ext_bad.dump", lines);
+        `FAIL_IF(ok)
     `SVTEST_END
 
     `SVTEST(init_reads_the_plusargs)

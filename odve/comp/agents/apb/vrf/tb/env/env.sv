@@ -39,11 +39,11 @@ class env extends uvm_env;
             uvm_config_db#(odve_apb_cfg)::set(this, "agt_s", "cfg", cfg_s);
             agt_s = odve_apb_agent::type_id::create("agt_s", this);
         end
-        scb_o = scb::type_id::create("scb_o", this);
+        if (cc_o.has_scb()) scb_o = scb::type_id::create("scb_o", this);
     endfunction
 
     virtual function void connect_phase(uvm_phase phase);
         super.connect_phase(phase);
-        agt.mon.item_collected_port.connect(scb_o.apb_imp);
+        if (scb_o != null) agt.mon.item_collected_port.connect(scb_o.apb_imp);
     endfunction
 endclass : env

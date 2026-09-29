@@ -12,17 +12,19 @@ module top;
 
     odve_apb_if apb_if (.clk(clk), .rst_n(rst_n));
 
-    // The slave side of the bus comes from the RTL slave below (default) or
-    // from the slave agent's driver (+apb_slave=mem|seq, see tb/env/cc.sv):
-    // one continuous driver per signal, no tristates.
-    logic        dut_pready, dut_pslverr;
-    logic [31:0] dut_prdata;
-    bit          use_dut = 1'b1;
+    // The slave side of the bus comes from the RTL slave below (default),
+    // the coverage emulation block (+apb_slave=cov) or the slave agent's
+    // driver (+apb_slave=mem|seq, see tb/env/cc.sv): one continuous driver
+    // per signal, no tristates.
+    logic        dut_pready, dut_pslverr, emu_pready, emu_pslverr;
+    logic [31:0] dut_prdata, emu_prdata;
+    int          slave_src = 0;     // 0 = dut, 1 = cov block, 2 = slave agent
     string       slave_sel;
-    initial if ($value$plusargs("apb_slave=%s", slave_sel)) use_dut = (slave_sel == "dut");
-    assign apb_if.pready  = use_dut ? dut_pready  : apb_if.s_pready;
-    assign apb_if.prdata  = use_dut ? dut_prdata  : apb_if.s_prdata;
-    assign apb_if.pslverr = use_dut ? dut_pslverr : apb_if.s_pslverr;
+    initial if ($value$plusargs("apb_slave=%s", slave_sel))
+        slave_src = (slave_sel == "dut") ? 0 : (slave_sel == "cov") ? 1 : 2;
+    assign apb_if.pready  = (slave_src == 0) ? dut_pready  : (slave_src == 1) ? emu_pready  : apb_if.s_pready;
+    assign apb_if.prdata  = (slave_src == 0) ? dut_prdata  : (slave_src == 1) ? emu_prdata  : apb_if.s_prdata;
+    assign apb_if.pslverr = (slave_src == 0) ? dut_pslverr : (slave_src == 1) ? emu_pslverr : apb_if.s_pslverr;
 
     dut dut_i (
         .clk     (clk),
@@ -35,6 +37,33 @@ module top;
         .pready  (dut_pready),
         .prdata  (dut_prdata),
         .pslverr (dut_pslverr)
+    );
+
+    // Functional-coverage emulation backend as a second APB slave. With
+    // FCOV=1 it is sized from the generated model and fed every hit of the
+    // package store (odve_cov_emu_feed); without, an unfed slave.
+    logic        smp_valid;
+    logic [31:0] smp_idx;
+`ifdef ODVE_FCOV
+    odve_cov_emu_feed cov_feed_i (.clk(clk), .rst_n(rst_n), .smp_valid(smp_valid), .smp_idx(smp_idx));
+    odve_cov_emu #(.N(odve_cov_pkg::N), .W(odve_cov_pkg::W)) cov_emu_i (
+`else
+    assign smp_valid = 1'b0;
+    assign smp_idx   = '0;
+    odve_cov_emu cov_emu_i (
+`endif
+        .clk       (clk),
+        .rst_n     (rst_n),
+        .smp_valid (smp_valid),
+        .smp_idx   (smp_idx),
+        .psel      (apb_if.psel),
+        .penable   (apb_if.penable),
+        .pwrite    (apb_if.pwrite),
+        .paddr     (apb_if.paddr),
+        .pwdata    (apb_if.pwdata),
+        .pready    (emu_pready),
+        .prdata    (emu_prdata),
+        .pslverr   (emu_pslverr)
     );
 
 `ifdef ODVE_FCOV

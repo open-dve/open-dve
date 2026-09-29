@@ -4,15 +4,15 @@ odve/script/regress/__pycache__/*
 odve/script/verilator-docker/native.env
 # unpacked by setup.sh --portable; the .tar.xz next to it is the tracked artefact
 odve/script/verilator-docker/prebuilt/*/
-odve/comp/agents/*/vrf/work/run/*__run/*
-odve/comp/agents/*/vrf/work/run/build/*
-odve/comp/agents/*/vrf/work/run/obj_dir/*
+odve/comp/agents/*/vrf/work/*/*__run/*
+odve/comp/agents/*/vrf/work/*/build/*
+odve/comp/agents/*/vrf/work/*/obj_dir/*
 # regress.py names RUN_DIR after the list entry, not <TESTNAME>__run
 odve/comp/agents/*/vrf/work/*/*/run.log
 # `make lint VERILATOR=1` keeps the full verilator --lint-only output here
 odve/comp/agents/*/vrf/work/*/lint.log
-odve/comp/agents/*/vrf/work/run/modelsim.ini
-odve/comp/agents/*/vrf/work/run/transcript
+odve/comp/agents/*/vrf/work/*/modelsim.ini
+odve/comp/agents/*/vrf/work/*/transcript
 # copied into each run dir by `prerun` (Questa): regress.py names the dir after the list entry
 odve/comp/agents/*/vrf/work/*/*/modelsim.ini
 odve/comp/agents/*/vrf/work/*/*/uvm_dpi.*
