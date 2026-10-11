@@ -84,6 +84,13 @@ class Rand:
         x = self.u32()
         return (x << 32) | self.u32()
 
+    def bits(self, n):
+        n = min(n, 1024)
+        v = 0
+        for i in range(0, n, 16):
+            v |= self.u16() << i
+        return v & ((1 << n) - 1)
+
     def below(self, n):
         n &= M64
         if n == 0:
@@ -98,19 +105,24 @@ class Rand:
                     x = draw()
                 return x % n
 
-    def urand(self, lo, hi):
+    def urand64(self, lo, hi):
         lo &= M64
         hi &= M64
-        if hi < lo:
-            lo, hi = hi, lo
+        if hi <= lo:
+            return lo
         return (lo + self.below((hi - lo + 1) & M64)) & M64
 
+    def urand(self, lo, hi):
+        return self.urand64(lo & M32, hi & M32)
+
     def urange(self, mx, mn=0):
-        return self.urand(mn & M32, mx & M32) & M32
+        mx &= M32
+        mn &= M32
+        return self.urand(mx, mn) if mx < mn else self.urand(mn, mx)
 
     def irand(self, lo, hi):
-        if hi < lo:
-            lo, hi = hi, lo
+        if hi <= lo:
+            return lo
         return s32(lo + self.below(hi - lo + 1))
 
     def chance(self, pct):
@@ -181,6 +193,11 @@ def lines():
         put(f"u32 {k}", r.u32())
     for k in range(10):
         put(f"u64 {k}", r.u64())
+    for n in (0, 1, 15, 16, 17, 64, 128, 256, 1000, 1024, 5000):
+        v, hb = r.bits(n), 0
+        for i in range(0, 1024, 64):
+            hb = fold(hb, (v >> i) & M64)
+        put(f"bits {n}", hb)
     h = 0
     for b in range(4):
         for _ in range(250000):
@@ -196,15 +213,15 @@ def lines():
             h = fold(h, r.below(n))
         put(f"below {n}", h)
     h = 0
-    for _ in range(50):
-        h = fold(h, r.urand(100, 10))
-    for _ in range(50):
-        h = fold(h, r.urand(5, 5))
-    for _ in range(50):
-        h = fold(h, r.urand(0, M64))
-    for _ in range(50):
-        h = fold(h, r.urand(0xFFFFFFFFFFFFFFF0, M64))
+    for lo, hi in ((10, 100), (100, 10), (5, 5), (0, M32), (0xFFFFFFF0, M32)):
+        for _ in range(50):
+            h = fold(h, r.urand(lo, hi))
     put("urand", h)
+    h = 0
+    for lo, hi in ((100, 10), (0, M64), (0xFFFFFFFFFFFFFFF0, M64), (1 << 32, 2 << 32)):
+        for _ in range(50):
+            h = fold(h, r.urand64(lo, hi))
+    put("urand64", h)
     h = 0
     for _ in range(50):
         h = fold(h, r.urange(15))
@@ -255,8 +272,8 @@ def lines():
         else:
             lo = 0
             hi = ((1 << c.urange(63)) - 1) & M64
-        v = r.urand(lo, hi)
-        if not (min(lo, hi) <= v <= max(lo, hi)):
+        v = r.urand64(lo, hi)
+        if not (lo <= v <= hi if lo <= hi else v == lo):
             bad += 1
         h = fold(h, v)
     put("sweep", h)

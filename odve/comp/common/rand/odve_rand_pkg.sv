@@ -10,7 +10,8 @@
 //     import odve_rand_pkg::*;
 //     odve_rand rng = new(get_full_name());     // a stream of its own, seeded from +SEED
 //     len   = rng.urange(15);                   // like $urandom_range(15, 0)
-//     addr  = rng.urand(base, base + size - 1); // 64-bit [lo:hi]
+//     n     = rng.urand(1, 16);                 // [lo:hi]
+//     addr  = rng.urand64(base, base + size - 1); // 64-bit [lo:hi]
 //     if (rng.chance(30)) ...                   // 1 with 30% probability
 //     kind  = rng.weighted('{70, 20, 10});      // index 0, 1 or 2 by weight
 //     item  = q[rng.index(q.size())];           // any element of a queue
@@ -20,7 +21,14 @@
 // seed (+SEED=<n>) and the stream name. Give every component (driver,
 // monitor, sequence) its own stream, so a draw added in one place does not
 // shift the values everywhere else, and so threads never share one.
+`ifndef ODVE_RAND_MAX_BITS
+`define ODVE_RAND_MAX_BITS 1024
+`endif
+
 package odve_rand_pkg;
+
+    // the widest value bits() returns (a multiple of 16)
+    typedef bit [`ODVE_RAND_MAX_BITS-1:0] odve_rand_bits_t;
 
     // murmur3's 32-bit finalizer: a bijection that spreads every input bit
     // over the whole word. Close seeds (SEED, SEED+1) give unrelated streams.
@@ -46,9 +54,13 @@ package odve_rand_pkg;
     class odve_rand;
         local static bit          m_run_seed_set;
         local static int unsigned m_run_seed;
+        local static int          m_trace_fd = -1;  // -1: +ODVE_RAND_TRACE not read yet, 0: off
+        local static string       m_trace_pat;
 
         local string m_name;
         local int    m_state;   // the $dist_uniform seed variable
+        local bit    m_traced;  // this stream is traced (known after its first draw)
+        local bit    m_trace_known;
 
         // A stream named `name`, seeded from the run seed and the name.
         function new(string name = "odve_rand");
@@ -117,7 +129,37 @@ package odve_rand_pkg;
         // takes a bare $dist_uniform for a pure function, so in a `case`
         // selector or a ?: it can be evaluated more or less than once.
         function int unsigned u16();
-            return $dist_uniform(m_state, 0, 65535);
+            int unsigned v = $dist_uniform(m_state, 0, 65535);
+            if (m_trace_fd != 0) trace(v);
+            return v;
+        endfunction
+
+        // +ODVE_RAND_TRACE writes every draw to odve_rand_trace.txt as
+        // "<time> <stream> <value>"; +ODVE_RAND_TRACE=<text> only the
+        // streams whose name contains <text>. script/rand/rand_trace_diff.py
+        // finds the first draw at which two runs differ, in value or in time.
+        local function void trace(int unsigned v);
+            if (m_trace_fd == -1) begin
+                m_trace_pat = "";
+                if ($test$plusargs("ODVE_RAND_TRACE")) begin
+                    void'($value$plusargs("ODVE_RAND_TRACE=%s", m_trace_pat));
+                    m_trace_fd = $fopen("odve_rand_trace.txt", "w");
+                end else
+                    m_trace_fd = 0;
+                if (m_trace_fd == 0) return;
+            end
+            if (!m_trace_known) begin
+                m_traced      = contains(m_name, m_trace_pat);
+                m_trace_known = 1;
+            end
+            if (m_traced) $fdisplay(m_trace_fd, "%0t %s %0d", $realtime, m_name, v);
+        endfunction
+
+        local static function bit contains(string s, string part);
+            if (part.len() == 0) return 1;
+            for (int i = 0; i + part.len() <= s.len(); i++)
+                if (s.substr(i, i + part.len() - 1) == part) return 1;
+            return 0;
         endfunction
 
         // Statement by statement: the operands of one expression may be
@@ -132,6 +174,17 @@ package odve_rand_pkg;
             longint unsigned x = 64'(u32());
             x = (x << 32) | 64'(u32());
             return x;
+        endfunction
+
+        // n random bits (at most ODVE_RAND_MAX_BITS), the rest 0: wide data,
+        // strobes, any-value fields. Drawn 16 bits at a time from bit 0 up,
+        // where {$urandom, $urandom, ...} has no defined order.
+        function odve_rand_bits_t bits(int unsigned n);
+            odve_rand_bits_t v = '0;
+            if (n > `ODVE_RAND_MAX_BITS) n = `ODVE_RAND_MAX_BITS;
+            for (int unsigned i = 0; i < n; i += 16) v[i +: 16] = 16'(u16());
+            if (n % 16 != 0) v &= (odve_rand_bits_t'(1) << n) - 1;
+            return v;
         endfunction
 
         // [0:n-1], each value equally likely; n == 0 means all 2^64 values.
@@ -157,22 +210,26 @@ package odve_rand_pkg;
             return x % n;
         endfunction
 
-        // [lo:hi] inclusive, 64-bit unsigned; either order, like $urandom_range.
-        function longint unsigned urand(longint unsigned lo, longint unsigned hi);
-            longint unsigned t;
-            if (hi < lo) begin t = lo; lo = hi; hi = t; end
+        // [lo:hi] inclusive; an empty range (hi < lo) gives lo.
+        function int unsigned urand(int unsigned lo, int unsigned hi);
+            if (hi <= lo) return lo;
+            return lo + 32'(below(64'(hi - lo) + 1));
+        endfunction
+
+        // [lo:hi] inclusive, 64-bit; an empty range (hi < lo) gives lo.
+        function longint unsigned urand64(longint unsigned lo, longint unsigned hi);
+            if (hi <= lo) return lo;
             return lo + below(hi - lo + 1);
         endfunction
 
-        // [min:max] like $urandom_range(max, min).
+        // [min:max] like $urandom_range(max, min): the bounds in either order.
         function int unsigned urange(int unsigned max, int unsigned min = 0);
-            return 32'(urand(min, max));
+            return (max < min) ? urand(max, min) : urand(min, max);
         endfunction
 
-        // [lo:hi] inclusive, signed; either order.
+        // [lo:hi] inclusive, signed; an empty range (hi < lo) gives lo.
         function int irand(int lo, int hi);
-            int t;
-            if (hi < lo) begin t = lo; lo = hi; hi = t; end
+            if (hi <= lo) return lo;
             return int'(longint'(lo) + longint'(below(64'(longint'(hi) - longint'(lo) + 1))));
         endfunction
 

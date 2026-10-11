@@ -82,9 +82,12 @@ check() {
     echo "  $1: $n lines, all equal to the reference"
 }
 
+first=${seeds%% *}
 for s in $seeds none; do
     arg="+SEED=$s"; ref=$s
     [ "$s" = none ] && { arg=; ref=1; }
+    # the first seed also writes the draw trace (+ODVE_RAND_TRACE)
+    [ "$s" = "$first" ] && arg="$arg +ODVE_RAND_TRACE"
     if [ -n "$run_vlt" ]; then
         d=vlt_$s; mkdir -p $d
         (cd $d && ../obj_vlt/odve_rand_tb $arg +verilator+seed+7 > log.txt 2>&1)
@@ -96,5 +99,15 @@ for s in $seeds none; do
         check $d $ref || fail=1
     fi
 done
+# the traces of the simulators: the same values at the same times
+if [ -n "$run_vlt" ] && [ -n "$run_qst" ]; then
+    if python3 "$here/../../../../script/rand/rand_trace_diff.py" vlt_$first/odve_rand_trace.txt qst_$first/odve_rand_trace.txt; then
+        echo "  draw traces of vlt_$first and qst_$first: equal"
+    else
+        fail=1
+    fi
+elif [ ! -s "$( [ -n "$run_vlt" ] && echo vlt_$first || echo qst_$first )/odve_rand_trace.txt" ]; then
+    echo "  +ODVE_RAND_TRACE wrote no trace"; fail=1
+fi
 if [ "$fail" -eq 0 ]; then echo "odve_rand self-test: PASS"; else echo "odve_rand self-test: FAIL"; fi
 exit $fail

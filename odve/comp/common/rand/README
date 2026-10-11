@@ -14,7 +14,8 @@ class my_driver extends uvm_driver #(my_item);
     endfunction
     ...
         len  = rng.urange(15);             // like $urandom_range(15, 0)
-        addr = rng.urand(base, base + 4095);
+        n    = rng.urand(1, 16);
+        addr = rng.urand64(base, base + 4095);
         if (rng.chance(30)) delay = rng.urange(20, 1);
         kind = rng.weighted('{70, 20, 10});
         data = rng.u64();
@@ -25,10 +26,12 @@ endclass
 | --- | --- |
 | `new(name)` | a stream seeded from the run seed and `name` |
 | `u16()`, `u32()`, `u64()` | 16, 32, 64 random bits |
+| `bits(n)` | `n` random bits, up to `ODVE_RAND_MAX_BITS` (default 1024): wide data, strobes |
 | `below(n)` | `[0:n-1]`, 64-bit (`n == 0`: any 64-bit value) |
-| `urand(lo, hi)` | `[lo:hi]`, 64-bit unsigned, either order |
-| `urange(max, min = 0)` | `[min:max]`, like `$urandom_range(max, min)` |
-| `irand(lo, hi)` | `[lo:hi]`, signed `int` |
+| `urand(lo, hi)` | `[lo:hi]`, `int unsigned`; an empty range (`hi < lo`) gives `lo` |
+| `urand64(lo, hi)` | the same, 64-bit |
+| `urange(max, min = 0)` | `[min:max]`, like `$urandom_range(max, min)` (bounds in either order) |
+| `irand(lo, hi)` | `[lo:hi]`, signed `int`; `hi < lo` gives `lo` |
 | `chance(pct)` | 1 with a probability of `pct` percent |
 | `index(n)` | an index into an array of `n` elements |
 | `weighted(w)` | index `i` with probability `w[i] / sum(w)` (a constraint's `dist`) |
@@ -65,9 +68,10 @@ seeds give unrelated streams and every name its own.
    sub-sequences started in a loop): `new(name)` alone would give every
    object with the same name the same values.
 4. **One draw per expression.** The operands of an expression may be
-   evaluated in any order: `{rng.u32(), rng.u32()}` or `f(rng.u16(),
-   rng.u16())` can differ between simulators. Draw into variables, one
-   statement each. A draw as a `case` selector, `?:` condition or in an
+   evaluated in any order: `{rng.u32(), rng.u32()}`, `rng.urand(0, 3) +
+   rng.urand(5, 9)` or `f(rng.u16(), rng.u16())` can differ between
+   simulators. Draw into variables, one statement each, or take a wide
+   value in one call (`rng.u64()`, `rng.bits(256)`). A draw as a `case` selector, `?:` condition or in an
    `if` is fine.
 5. **Keep a stream in a class member, not in a task's local variable** when
    the task forks: Verilator shares the locals of an automatic task that
@@ -75,8 +79,12 @@ seeds give unrelated streams and every name its own.
 6. **Values are the same; races are not.** Two processes woken in the same
    time step run in an order the simulator chooses (a `#` delay landing on a
    clock edge, then `@(posedge clk)`; a blocking write and a read of it at
-   one edge). The streams cannot fix that: sample with nonblocking
-   assignments at clock edges, as the cycle-based drivers do.
+   one edge; a process woken at an edge that reads what another process
+   woken at that edge updates; whether a variable's initial value is an
+   edge at time 0). The streams cannot fix that: let one process per clock
+   decide what happens in a cycle and sample with nonblocking assignments,
+   as the cycle-based drivers do. `+ODVE_RAND_TRACE` (below) shows where
+   two runs part.
 
 ## Why `$dist_uniform`, and why only `[0:65535]`
 
@@ -115,6 +123,22 @@ transactions - noise next to the cost of a simulated bus transaction.
 Each stream has a period of 2^32 draws (all streams run along the same LCG
 cycle, from points set by their seeds).
 
+## Finding where two runs part
+
+```
++ODVE_RAND_TRACE            every draw of every stream -> odve_rand_trace.txt
++ODVE_RAND_TRACE=<text>     only the streams whose name contains <text>
+```
+
+Each line is `<time> <stream> <value>`. `script/rand/rand_trace_diff.py
+<A>/odve_rand_trace.txt <B>/odve_rand_trace.txt` compares two runs stream by
+stream and lists the first differing draw of each, earliest first: a
+**value** difference is a stream drawn more or less often or by another code
+path; a **time** difference is the same values drawn at another time, which
+is a same-time-step race in the testbench (rule 6). The earliest one is the
+cause, the rest follow from it. Without the plusarg the trace costs one
+comparison per draw.
+
 ## Self-test
 
 ```bash
@@ -126,4 +150,5 @@ builds `test/odve_rand_tb.sv` on every simulator found, runs it under several
 `test/odve_rand_ref.py`, the same algorithm in Python: each API, edge-case
 ranges, 100000 random ranges checked for bounds, a 1M-draw stream, `spawn`,
 replay, `case`/`?:`/`inside` contexts, 50 threads with random timing and a
-sub-module `always` block. Run it after any change to the package.
+sub-module `always` block; for the first seed the draw traces of the two
+simulators must be equal too. Run it after any change to the package.
