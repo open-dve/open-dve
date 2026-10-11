@@ -38,7 +38,7 @@ lint:
 	
 run:
 	@echo "run: $(if $(TIMEOUT_CMD),time limit $(strip $(TIMEOUT)) min,$(TIMEOUT_NOTE)); $(SEED_NOTE)"
-	$(TIMEOUT_CMD) ./obj_dir/$(BIN) $(RUN_OPTS) +verilator+seed+$(SEED); $(CHECK_TIMEOUT_NOLOG)
+	$(TIMEOUT_CMD) ./obj_dir/$(BIN) $(RUN_OPTS) +verilator+seed+$(SEED) $(SEED_PLUSARG); $(CHECK_TIMEOUT_NOLOG)
 
 version:
 	$(VERILATOR_ROOT)/bin/verilator --version

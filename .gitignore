@@ -26,3 +26,5 @@ __pycache__/
 # simulator code-coverage output per run (CCOV=1)
 odve/comp/agents/*/vrf/work/*/*/coverage.dat
 odve/comp/agents/*/vrf/work/*/*/cov.ucdb
+# written by comp/common/rand/test/run_test.sh (default -o)
+odve_rand_test/

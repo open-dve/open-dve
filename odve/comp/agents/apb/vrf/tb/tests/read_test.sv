@@ -25,6 +25,7 @@ class read_test extends uvm_test;
     `uvm_component_utils(read_test)
     `odve_cov_create(apb_cg)
     `odve_cov_create(apb_cg2)
+    odve_rand rng;
 
     function new(string name = "red_test", uvm_component parent = null);
         super.new(name, parent);
@@ -32,6 +33,7 @@ class read_test extends uvm_test;
 
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
+        rng = new(get_full_name());
     endfunction : build_phase
 
     virtual task run_phase(uvm_phase phase);
@@ -43,6 +45,8 @@ class read_test extends uvm_test;
         int  lens[8] = '{1, 2, 3, 4, 8, 0, 1, 2};
         super.run_phase(phase);
         `uvm_info(get_name(),"RUN TEST", UVM_NONE)
+        // the same line on every simulator for the same SEED
+        `uvm_info(get_name(), $sformatf("odve_rand: SEED %0d, first draw %0d", odve_rand::run_seed(), rng.u32()), UVM_NONE)
         void'($value$plusargs("cov_iters=%d", iters));
         phase.raise_objection(this);
         for (int i = 0; i < iters; i++) begin

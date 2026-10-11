@@ -1,0 +1,129 @@
+# comp/common/rand - random numbers that are the same on every simulator
+
+`odve_rand_pkg.sv` gives every testbench the same random values for the same
+seed on Verilator and Questa/ModelSim, run after run. A failing seed found on
+one simulator reproduces on the other.
+
+```systemverilog
+import odve_rand_pkg::*;
+
+class my_driver extends uvm_driver #(my_item);
+    odve_rand rng;
+    function void build_phase(uvm_phase phase);
+        rng = new(get_full_name());        // a stream of its own, seeded from +SEED
+    endfunction
+    ...
+        len  = rng.urange(15);             // like $urandom_range(15, 0)
+        addr = rng.urand(base, base + 4095);
+        if (rng.chance(30)) delay = rng.urange(20, 1);
+        kind = rng.weighted('{70, 20, 10});
+        data = rng.u64();
+endclass
+```
+
+| Method | Returns |
+| --- | --- |
+| `new(name)` | a stream seeded from the run seed and `name` |
+| `u16()`, `u32()`, `u64()` | 16, 32, 64 random bits |
+| `below(n)` | `[0:n-1]`, 64-bit (`n == 0`: any 64-bit value) |
+| `urand(lo, hi)` | `[lo:hi]`, 64-bit unsigned, either order |
+| `urange(max, min = 0)` | `[min:max]`, like `$urandom_range(max, min)` |
+| `irand(lo, hi)` | `[lo:hi]`, signed `int` |
+| `chance(pct)` | 1 with a probability of `pct` percent |
+| `index(n)` | an index into an array of `n` elements |
+| `weighted(w)` | index `i` with probability `w[i] / sum(w)` (a constraint's `dist`) |
+| `spawn(name)` | a new stream, its seed drawn from this one |
+| `get_seed()` / `set_seed(s)` | save and restore the stream (replay) |
+| `odve_rand::run_seed()` | the run seed: `+SEED=<n>`, or 1 without it |
+| `odve_rand::stream_seed(name)` | the seed `new(name)` uses in this run |
+
+Every range is exact and unbiased: values are built from 16-bit draws by
+integer arithmetic, and a draw from the incomplete top block of the word is
+drawn again.
+
+## The seed
+
+odve's `run.mk` passes the make `SEED` (random per run unless `SEED=<n>` is
+given, recorded in `run.log`) to every run as `+SEED=<n>`, on both simulator
+paths. Nothing else seeds `odve_rand`: the simulator's own seed
+(`-sv_seed`, `+verilator+seed+`) does not change its values. A stream's seed
+is `mix(run_seed ^ mix(hash(name)))` (murmur3 finalizer, FNV-1a), so close run
+seeds give unrelated streams and every name its own.
+
+## Rules for testbench code
+
+1. **Every random value comes from an `odve_rand` stream.** `$urandom`,
+   `$urandom_range`, `$random` and `randomize()` use each simulator's own
+   generator (Verilator: xoroshiro128** for all of them; Questa: its own), so
+   the same seed gives different values. `script/rand/rand_check.py <dirs>`
+   lists every call that bypasses `odve_rand`.
+2. **One stream per component, created in `build_phase` (or `new`) from
+   `get_full_name()`.** A draw added in one component then does not shift the
+   values of the others, and concurrent threads never share a stream - their
+   order of execution is the simulator's choice.
+3. **Objects made again and again get `spawn()`ed streams** (sequence items,
+   sub-sequences started in a loop): `new(name)` alone would give every
+   object with the same name the same values.
+4. **One draw per expression.** The operands of an expression may be
+   evaluated in any order: `{rng.u32(), rng.u32()}` or `f(rng.u16(),
+   rng.u16())` can differ between simulators. Draw into variables, one
+   statement each. A draw as a `case` selector, `?:` condition or in an
+   `if` is fine.
+5. **Keep a stream in a class member, not in a task's local variable** when
+   the task forks: Verilator shares the locals of an automatic task that
+   contains `fork ... join_any` between concurrent calls.
+6. **Values are the same; races are not.** Two processes woken in the same
+   time step run in an order the simulator chooses (a `#` delay landing on a
+   clock edge, then `@(posedge clk)`; a blocking write and a read of it at
+   one edge). The streams cannot fix that: sample with nonblocking
+   assignments at clock edges, as the cycle-based drivers do.
+
+## Why `$dist_uniform`, and why only `[0:65535]`
+
+IEEE 1800 Annex N defines `$dist_uniform` and the other `$dist_*` functions
+bit for bit (a 32-bit LCG, `seed = 69069 * seed + 1`, scaled in floating
+point). Verilator implements it (`verilated_probdist.cpp`) and so does
+Questa; it is the only standard generator both produce identically. What was
+found by testing Verilator 5.052 against ModelSim 2020.1:
+
+- The range must be a power of two. `$dist_uniform(s, 2147483637,
+  2147483647)` gave 2147483644 on Verilator and 2147483645 on ModelSim, once
+  in 20M draws: ranges ending at INT_MAX take a floating-point branch that
+  rounds differently. `[0:65535]` is exact in any floating-point precision.
+- The call must be inside a function. Verilator treats a bare `$dist_*` as a
+  pure function: in `case ($dist_uniform(...))` it draws again for each case
+  item, and in `inside`, `?:` and `%` expressions the seed does not advance
+  exactly once. Through a function it is evaluated once.
+- The seed must not be passed by `inout`. Called from an `always` block of a
+  sub-module, Verilator passed 0 as the seed on every edge; a class member
+  (as here) or a `ref` argument works.
+- Seeds must be hashed. With `SEED + i` as the seeds of 100 threads, all of
+  them drew 0 first.
+
+Tested with the helper written to these rules: 1000 threads with random
+ranges, 20000 seeds (0, -1, INT_MIN, INT_MAX included), a 50M-draw stream,
+1000 threads with random delays, `join_any` and `disable fork`, class, static,
+package, interface and sub-module `always` contexts, Verilator default and
+`-O3 --threads 4` builds, four seeds: 25143 checksums per run, none different
+between the simulators. Over 1M transactions of 100 threads the values pass
+chi-square, mean, lag-1, pair and cross-thread correlation tests against
+numpy's PCG64; the only weakness is the low bits of 31-bit values drawn in
+one call, which is why wider values are built from 16-bit draws.
+
+Cost: about 15 ns a draw on Verilator and 460 ns on ModelSim, flat over 10M
+transactions - noise next to the cost of a simulated bus transaction.
+Each stream has a period of 2^32 draws (all streams run along the same LCG
+cycle, from points set by their seeds).
+
+## Self-test
+
+```bash
+comp/common/rand/test/run_test.sh [-s vlt|qst|all] [seed ...]
+```
+
+builds `test/odve_rand_tb.sv` on every simulator found, runs it under several
+`+SEED` values (and without one) and compares every line with
+`test/odve_rand_ref.py`, the same algorithm in Python: each API, edge-case
+ranges, 100000 random ranges checked for bounds, a 1M-draw stream, `spawn`,
+replay, `case`/`?:`/`inside` contexts, 50 threads with random timing and a
+sub-module `always` block. Run it after any change to the package.

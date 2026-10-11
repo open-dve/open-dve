@@ -260,6 +260,7 @@ cat > "$AGENT/vrf/list/fl_tb.f" <<EOF
 +incdir+\${ODVE_UVM}/src/
 +incdir+\${ODVE}/comp/agents/${PROTO}/vrf/tb/env/
 
+\${ODVE}/comp/common/rand/odve_rand_pkg.sv
 \${ODVE}/comp/agents/${PROTO}/vrf/tb/env/env_pkg.sv
 \${ODVE}/comp/agents/${PROTO}/vrf/tb/tests/test_pkg.sv
 

@@ -1,6 +1,6 @@
 # Requirement to agents
 1. Possibility to run with ModelSim SE
-1. Do not use SV construction with randomize(), use only $urandom() or external CPP libs to generate $random() values
+1. Do not use SV construction with randomize(), $urandom() or $random(): take every random value from an odve_rand stream (comp/common/rand/odve_rand_pkg.sv), which gives the same values for the same +SEED on every simulator. script/rand/rand_check.py lists the calls that bypass it.
 1.  Do not use function coverage to keep running with ModelSim SE. USe instead of it Code coverage. We can handle code coverage toggling by condition with the same manner like Functional covergroups. 
 1. Agent should use SV construction what can be compiled with Verilator (optional).
 1. Agents should have 2 part synthesable and non synthesable, 2 filelists and has possibility to run with HW accselerators. 

@@ -5,6 +5,7 @@
 | `base/` | `odve_common_base_item.sv` - base sequence item (placeholder today). |
 | `macro/` | `odve_macro.sv` - the framework macros: `` `odve_rand(obj) `` (calls `obj.user_randomize()`, since ModelSim SE has no constraint solver), `` `odve_cov_create(name) `` and `` `odve_cov_sample(name, args...) `` (functional coverage, below). |
 | `cov/` | Functional-coverage runtime, compiled only with `FCOV=1`: `odve_cov_pkg.sv` (package-static counter store `odve_cov_store`, the base class `odve_cov_group` of the generated groups, the table lookups `find_bin()`/`find_trans()`) and `odve_cov_final.sv` (the one-line module that writes the dump at `final` - a package cannot hold a `final` block). |
+| `rand/` | `odve_rand_pkg.sv` - random numbers that are the same on every simulator for the same `+SEED` (class `odve_rand`: one stream per component; `urange`, `urand`, `chance`, `weighted`, `spawn`, ...), its rules, measurements and self-test (`test/run_test.sh`). See `rand/README`. |
 | `func/`, `pkg/` | Placeholders. |
 
 ## Functional coverage in three lines

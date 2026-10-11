@@ -8,6 +8,9 @@
 ${ODVE}/comp/common/cov/odve_cov_pkg.sv
 ${ODVE}/comp/common/cov/odve_cov_final.sv
 
+// random numbers: the same for the same +SEED on every simulator (comp/common/rand)
+${ODVE}/comp/common/rand/odve_rand_pkg.sv
+
 ${ODVE}/comp/agents/apb/vrf/tb/tests/test_pkg.sv
 
 ${ODVE}/comp/agents/apb/vrf/tb/top.sv
