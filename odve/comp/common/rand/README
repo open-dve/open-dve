@@ -26,6 +26,7 @@ endclass
 | --- | --- |
 | `new(name)` | a stream seeded from the run seed and `name` |
 | `u16()`, `u32()`, `u64()` | 16, 32, 64 random bits |
+| `bits(n)` | `n` random bits, up to `ODVE_RAND_MAX_BITS` (default 1024): wide data, strobes |
 | `below(n)` | `[0:n-1]`, 64-bit (`n == 0`: any 64-bit value) |
 | `urand(lo, hi)` | `[lo:hi]`, `int unsigned`; an empty range (`hi < lo`) gives `lo` |
 | `urand64(lo, hi)` | the same, 64-bit |
@@ -67,9 +68,10 @@ seeds give unrelated streams and every name its own.
    sub-sequences started in a loop): `new(name)` alone would give every
    object with the same name the same values.
 4. **One draw per expression.** The operands of an expression may be
-   evaluated in any order: `{rng.u32(), rng.u32()}` or `f(rng.u16(),
-   rng.u16())` can differ between simulators. Draw into variables, one
-   statement each. A draw as a `case` selector, `?:` condition or in an
+   evaluated in any order: `{rng.u32(), rng.u32()}`, `rng.urand(0, 3) +
+   rng.urand(5, 9)` or `f(rng.u16(), rng.u16())` can differ between
+   simulators. Draw into variables, one statement each, or take a wide
+   value in one call (`rng.u64()`, `rng.bits(256)`). A draw as a `case` selector, `?:` condition or in an
    `if` is fine.
 5. **Keep a stream in a class member, not in a task's local variable** when
    the task forks: Verilator shares the locals of an automatic task that

@@ -21,7 +21,14 @@
 // seed (+SEED=<n>) and the stream name. Give every component (driver,
 // monitor, sequence) its own stream, so a draw added in one place does not
 // shift the values everywhere else, and so threads never share one.
+`ifndef ODVE_RAND_MAX_BITS
+`define ODVE_RAND_MAX_BITS 1024
+`endif
+
 package odve_rand_pkg;
+
+    // the widest value bits() returns (a multiple of 16)
+    typedef bit [`ODVE_RAND_MAX_BITS-1:0] odve_rand_bits_t;
 
     // murmur3's 32-bit finalizer: a bijection that spreads every input bit
     // over the whole word. Close seeds (SEED, SEED+1) give unrelated streams.
@@ -133,6 +140,17 @@ package odve_rand_pkg;
             longint unsigned x = 64'(u32());
             x = (x << 32) | 64'(u32());
             return x;
+        endfunction
+
+        // n random bits (at most ODVE_RAND_MAX_BITS), the rest 0: wide data,
+        // strobes, any-value fields. Drawn 16 bits at a time from bit 0 up,
+        // where {$urandom, $urandom, ...} has no defined order.
+        function odve_rand_bits_t bits(int unsigned n);
+            odve_rand_bits_t v = '0;
+            if (n > `ODVE_RAND_MAX_BITS) n = `ODVE_RAND_MAX_BITS;
+            for (int unsigned i = 0; i < n; i += 16) v[i +: 16] = 16'(u16());
+            if (n % 16 != 0) v &= (odve_rand_bits_t'(1) << n) - 1;
+            return v;
         endfunction
 
         // [0:n-1], each value equally likely; n == 0 means all 2^64 values.

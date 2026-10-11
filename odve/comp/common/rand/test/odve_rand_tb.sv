@@ -174,9 +174,16 @@ module odve_rand_tb;
     task automatic t_words();
         odve_rand r = new("words");
         int unsigned h = 0;
+        int unsigned nbits[] = '{0, 1, 15, 16, 17, 64, 128, 256, 1000, 1024, 5000};
         for (int k = 0; k < 20; k++) put($sformatf("u16 %0d", k), r.u16());
         for (int k = 0; k < 10; k++) put($sformatf("u32 %0d", k), r.u32());
         for (int k = 0; k < 10; k++) put($sformatf("u64 %0d", k), r.u64());
+        foreach (nbits[j]) begin
+            odve_rand_bits_t v = r.bits(nbits[j]);
+            int unsigned     hb = 0;
+            for (int i = 0; i < $bits(odve_rand_bits_t); i += 64) hb = fold(hb, v[i +: 64]);
+            put($sformatf("bits %0d", nbits[j]), hb);
+        end
         for (int b = 0; b < 4; b++) begin
             for (int k = 0; k < 250000; k++) h = fold(h, r.u16());
             put($sformatf("long %0d", b), h);

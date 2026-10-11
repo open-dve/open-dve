@@ -84,6 +84,13 @@ class Rand:
         x = self.u32()
         return (x << 32) | self.u32()
 
+    def bits(self, n):
+        n = min(n, 1024)
+        v = 0
+        for i in range(0, n, 16):
+            v |= self.u16() << i
+        return v & ((1 << n) - 1)
+
     def below(self, n):
         n &= M64
         if n == 0:
@@ -186,6 +193,11 @@ def lines():
         put(f"u32 {k}", r.u32())
     for k in range(10):
         put(f"u64 {k}", r.u64())
+    for n in (0, 1, 15, 16, 17, 64, 128, 256, 1000, 1024, 5000):
+        v, hb = r.bits(n), 0
+        for i in range(0, 1024, 64):
+            hb = fold(hb, (v >> i) & M64)
+        put(f"bits {n}", hb)
     h = 0
     for b in range(4):
         for _ in range(250000):
