@@ -106,11 +106,18 @@ module odve_rand_tb;
         end
         begin
             int unsigned h = 0;
-            for (int k = 0; k < 50; k++) h = fold(h, r.urand(100, 10));       // reversed
+            for (int k = 0; k < 50; k++) h = fold(h, r.urand(10, 100));
+            for (int k = 0; k < 50; k++) h = fold(h, r.urand(100, 10));       // empty: 100
             for (int k = 0; k < 50; k++) h = fold(h, r.urand(5, 5));
-            for (int k = 0; k < 50; k++) h = fold(h, r.urand(0, 64'hFFFF_FFFF_FFFF_FFFF));
-            for (int k = 0; k < 50; k++) h = fold(h, r.urand(64'hFFFF_FFFF_FFFF_FFF0, 64'hFFFF_FFFF_FFFF_FFFF));
+            for (int k = 0; k < 50; k++) h = fold(h, r.urand(0, 32'hFFFF_FFFF));
+            for (int k = 0; k < 50; k++) h = fold(h, r.urand(32'hFFFF_FFF0, 32'hFFFF_FFFF));
             put("urand", h);
+            h = 0;
+            for (int k = 0; k < 50; k++) h = fold(h, r.urand64(100, 10));     // empty: 100
+            for (int k = 0; k < 50; k++) h = fold(h, r.urand64(0, 64'hFFFF_FFFF_FFFF_FFFF));
+            for (int k = 0; k < 50; k++) h = fold(h, r.urand64(64'hFFFF_FFFF_FFFF_FFF0, 64'hFFFF_FFFF_FFFF_FFFF));
+            for (int k = 0; k < 50; k++) h = fold(h, r.urand64(64'h1_0000_0000, 64'h2_0000_0000));
+            put("urand64", h);
             h = 0;
             for (int k = 0; k < 50; k++) h = fold(h, r.urange(15));
             for (int k = 0; k < 50; k++) h = fold(h, r.urange(0));
@@ -120,7 +127,7 @@ module odve_rand_tb;
             h = 0;
             for (int k = 0; k < 50; k++) h = fold(h, r.irand(-5, 5));
             for (int k = 0; k < 50; k++) h = fold(h, r.irand(-2147483648, 2147483647));
-            for (int k = 0; k < 50; k++) h = fold(h, r.irand(2147483647, -2147483648)); // reversed
+            for (int k = 0; k < 50; k++) h = fold(h, r.irand(2147483647, -2147483648)); // empty: INT_MAX
             for (int k = 0; k < 50; k++) h = fold(h, r.irand(-2147483648, -2147483640));
             put("irand", h);
             h = 0;
@@ -155,8 +162,8 @@ module odve_rand_tb;
                 2: begin lo = c.u64(); hi = lo + c.urange(255); end
                 default: begin lo = 0; hi = (64'd1 << c.urange(63)) - 1; end
             endcase
-            v = r.urand(lo, hi);
-            if (lo <= hi ? (v < lo || v > hi) : (v < hi || v > lo)) bad++;
+            v = r.urand64(lo, hi);
+            if (lo <= hi ? (v < lo || v > hi) : (v != lo)) bad++;
             h = fold(h, v);
         end
         put("sweep", h);

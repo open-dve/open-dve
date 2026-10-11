@@ -14,7 +14,8 @@ class my_driver extends uvm_driver #(my_item);
     endfunction
     ...
         len  = rng.urange(15);             // like $urandom_range(15, 0)
-        addr = rng.urand(base, base + 4095);
+        n    = rng.urand(1, 16);
+        addr = rng.urand64(base, base + 4095);
         if (rng.chance(30)) delay = rng.urange(20, 1);
         kind = rng.weighted('{70, 20, 10});
         data = rng.u64();
@@ -26,9 +27,10 @@ endclass
 | `new(name)` | a stream seeded from the run seed and `name` |
 | `u16()`, `u32()`, `u64()` | 16, 32, 64 random bits |
 | `below(n)` | `[0:n-1]`, 64-bit (`n == 0`: any 64-bit value) |
-| `urand(lo, hi)` | `[lo:hi]`, 64-bit unsigned, either order |
-| `urange(max, min = 0)` | `[min:max]`, like `$urandom_range(max, min)` |
-| `irand(lo, hi)` | `[lo:hi]`, signed `int` |
+| `urand(lo, hi)` | `[lo:hi]`, `int unsigned`; an empty range (`hi < lo`) gives `lo` |
+| `urand64(lo, hi)` | the same, 64-bit |
+| `urange(max, min = 0)` | `[min:max]`, like `$urandom_range(max, min)` (bounds in either order) |
+| `irand(lo, hi)` | `[lo:hi]`, signed `int`; `hi < lo` gives `lo` |
 | `chance(pct)` | 1 with a probability of `pct` percent |
 | `index(n)` | an index into an array of `n` elements |
 | `weighted(w)` | index `i` with probability `w[i] / sum(w)` (a constraint's `dist`) |

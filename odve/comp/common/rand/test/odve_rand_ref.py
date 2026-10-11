@@ -98,19 +98,24 @@ class Rand:
                     x = draw()
                 return x % n
 
-    def urand(self, lo, hi):
+    def urand64(self, lo, hi):
         lo &= M64
         hi &= M64
-        if hi < lo:
-            lo, hi = hi, lo
+        if hi <= lo:
+            return lo
         return (lo + self.below((hi - lo + 1) & M64)) & M64
 
+    def urand(self, lo, hi):
+        return self.urand64(lo & M32, hi & M32)
+
     def urange(self, mx, mn=0):
-        return self.urand(mn & M32, mx & M32) & M32
+        mx &= M32
+        mn &= M32
+        return self.urand(mx, mn) if mx < mn else self.urand(mn, mx)
 
     def irand(self, lo, hi):
-        if hi < lo:
-            lo, hi = hi, lo
+        if hi <= lo:
+            return lo
         return s32(lo + self.below(hi - lo + 1))
 
     def chance(self, pct):
@@ -196,15 +201,15 @@ def lines():
             h = fold(h, r.below(n))
         put(f"below {n}", h)
     h = 0
-    for _ in range(50):
-        h = fold(h, r.urand(100, 10))
-    for _ in range(50):
-        h = fold(h, r.urand(5, 5))
-    for _ in range(50):
-        h = fold(h, r.urand(0, M64))
-    for _ in range(50):
-        h = fold(h, r.urand(0xFFFFFFFFFFFFFFF0, M64))
+    for lo, hi in ((10, 100), (100, 10), (5, 5), (0, M32), (0xFFFFFFF0, M32)):
+        for _ in range(50):
+            h = fold(h, r.urand(lo, hi))
     put("urand", h)
+    h = 0
+    for lo, hi in ((100, 10), (0, M64), (0xFFFFFFFFFFFFFFF0, M64), (1 << 32, 2 << 32)):
+        for _ in range(50):
+            h = fold(h, r.urand64(lo, hi))
+    put("urand64", h)
     h = 0
     for _ in range(50):
         h = fold(h, r.urange(15))
@@ -255,8 +260,8 @@ def lines():
         else:
             lo = 0
             hi = ((1 << c.urange(63)) - 1) & M64
-        v = r.urand(lo, hi)
-        if not (min(lo, hi) <= v <= max(lo, hi)):
+        v = r.urand64(lo, hi)
+        if not (lo <= v <= hi if lo <= hi else v == lo):
             bad += 1
         h = fold(h, v)
     put("sweep", h)

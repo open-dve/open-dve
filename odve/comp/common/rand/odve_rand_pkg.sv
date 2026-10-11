@@ -10,7 +10,8 @@
 //     import odve_rand_pkg::*;
 //     odve_rand rng = new(get_full_name());     // a stream of its own, seeded from +SEED
 //     len   = rng.urange(15);                   // like $urandom_range(15, 0)
-//     addr  = rng.urand(base, base + size - 1); // 64-bit [lo:hi]
+//     n     = rng.urand(1, 16);                 // [lo:hi]
+//     addr  = rng.urand64(base, base + size - 1); // 64-bit [lo:hi]
 //     if (rng.chance(30)) ...                   // 1 with 30% probability
 //     kind  = rng.weighted('{70, 20, 10});      // index 0, 1 or 2 by weight
 //     item  = q[rng.index(q.size())];           // any element of a queue
@@ -157,22 +158,26 @@ package odve_rand_pkg;
             return x % n;
         endfunction
 
-        // [lo:hi] inclusive, 64-bit unsigned; either order, like $urandom_range.
-        function longint unsigned urand(longint unsigned lo, longint unsigned hi);
-            longint unsigned t;
-            if (hi < lo) begin t = lo; lo = hi; hi = t; end
+        // [lo:hi] inclusive; an empty range (hi < lo) gives lo.
+        function int unsigned urand(int unsigned lo, int unsigned hi);
+            if (hi <= lo) return lo;
+            return lo + 32'(below(64'(hi - lo) + 1));
+        endfunction
+
+        // [lo:hi] inclusive, 64-bit; an empty range (hi < lo) gives lo.
+        function longint unsigned urand64(longint unsigned lo, longint unsigned hi);
+            if (hi <= lo) return lo;
             return lo + below(hi - lo + 1);
         endfunction
 
-        // [min:max] like $urandom_range(max, min).
+        // [min:max] like $urandom_range(max, min): the bounds in either order.
         function int unsigned urange(int unsigned max, int unsigned min = 0);
-            return 32'(urand(min, max));
+            return (max < min) ? urand(max, min) : urand(min, max);
         endfunction
 
-        // [lo:hi] inclusive, signed; either order.
+        // [lo:hi] inclusive, signed; an empty range (hi < lo) gives lo.
         function int irand(int lo, int hi);
-            int t;
-            if (hi < lo) begin t = lo; lo = hi; hi = t; end
+            if (hi <= lo) return lo;
             return int'(longint'(lo) + longint'(below(64'(longint'(hi) - longint'(lo) + 1))));
         endfunction
 
