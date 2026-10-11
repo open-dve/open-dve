@@ -36,7 +36,7 @@ endif
 RUN_OPTS +=
 
 MK_RUN_OPTS+=+UVM_TESTNAME=$(TESTNAME) \
--sv_seed $(SEED) \
+-sv_seed $(SEED) $(SEED_PLUSARG) \
 -L dut $(COV_RUN_OPTS) $(CCOV_RUN_OPTS)
 #MK_RUN_OPTS+=-sv_lib ${ODVE_UVM}/src/dpi
 

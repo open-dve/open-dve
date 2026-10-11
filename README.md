@@ -22,7 +22,7 @@ Project give possibility to unify TB building/running/result gathering.
     - UNIPRO VIP
     - UFS VIP
 - Randomization :
-    - use simple $urandom 
+    - odve_rand (comp/common/rand): the same values for the same seed on every simulator
     - use DPI to call constraint solver from Google Lib 
 - Coverage :    
     - Generate DUT coverage (line,cond,tgl,fsm,branch) 

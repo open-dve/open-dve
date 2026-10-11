@@ -5,6 +5,7 @@ package test_pkg;
     `include "uvm_macros.svh"
     `include "odve_macro.sv"
     import uvm_pkg::*;
+    import odve_rand_pkg::*;
 
     `include "read_test.sv"
 endpackage  

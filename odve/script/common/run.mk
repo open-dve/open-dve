@@ -19,12 +19,16 @@
 #
 # SEED is the simulation seed. It is random for every `make run` unless
 # given, so each run of a regression gets its own and no test is forever run
-# with one value - "passes at seed 1" is not "passes". Both simulators are
-# told it natively (vsim -sv_seed, +verilator+seed+) so $urandom follows it,
-# and it is written to run.log as "*** ODVE_SEED: <n>", which regress.py
-# reads back onto its status lines and into the -exer report with the
-# command that reproduces the run. An agent that keys its own randomness on
-# a plusarg (pcie-v's +PCIEV_SEED) derives that from $(SEED) in its Makefile.
+# with one value - "passes at seed 1" is not "passes". The run gets it as
+# +SEED=<n> (SEED_PLUSARG), which seeds every odve_rand stream
+# (comp/common/rand/odve_rand_pkg.sv): the same values on every simulator.
+# Both simulators are also told it natively (vsim -sv_seed,
+# +verilator+seed+), which only $urandom/randomize() follow, and each in its
+# own vendor-specific way. It is written to run.log as "*** ODVE_SEED: <n>",
+# which regress.py reads back onto its status lines and into the -exer report
+# with the command that reproduces the run. An agent that keys its own
+# randomness on another plusarg (pcie-v's +PCIEV_SEED) derives that from
+# $(SEED) in its Makefile.
 
 TIMEOUT ?= 180
 
@@ -40,6 +44,7 @@ else
     SEED_NOTE = seed $(SEED) (given)
 endif
 SEED_MSG = *** ODVE_SEED: $(SEED)
+SEED_PLUSARG = +SEED=$(SEED)
 
 # GUI=1 is a human watching the simulator: killing it on a clock would be
 # wrong, and the run is not being harvested by a regression anyway.
