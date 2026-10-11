@@ -281,9 +281,14 @@ elib :
 	vmap uvm  ./../$(COMP_DIR)/uvm  ;
 
 
+# The run dir gets this build's library mapping and DPI library every time:
+# a run dir kept from an earlier build (another COMP_DIR, a renamed one)
+# would otherwise keep that build's modelsim.ini and simulate it, silently.
+# (An agent that runs without the DPI library may set UVM_DPI_SHARED to
+# modelsim.ini: then the mapping alone is copied.)
 prerun : mkdir_run
-	cp -r -n $(DEFAULT_RUN_DIR)/modelsim.ini $(RUN_DIR); \
-	cp -r -n $(COMP_DIR)/$(UVM_DPI_SHARED) $(RUN_DIR); \
+	cp -r -f $(DEFAULT_RUN_DIR)/modelsim.ini $(RUN_DIR); \
+	$(if $(filter modelsim.ini,$(UVM_DPI_SHARED)),,cp -r -f $(COMP_DIR)/$(UVM_DPI_SHARED) $(RUN_DIR);) \
 	
 #cp -r -n $(COMP_DIR)/uvm_dpi.so $(RUN_DIR); \
 

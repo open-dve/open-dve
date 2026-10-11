@@ -52,7 +52,7 @@ elib :
 
 
 prerun : mkdir_run
-	cp -r -n $(DEFAULT_RUN_DIR)/modelsim.ini $(RUN_DIR); \
+	cp -r -f $(DEFAULT_RUN_DIR)/modelsim.ini $(RUN_DIR); \
 	
 run : prerun 
 	@echo "run: $(if $(TIMEOUT_CMD),time limit $(strip $(TIMEOUT)) min,$(TIMEOUT_NOTE))"
