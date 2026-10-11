@@ -39,6 +39,10 @@ package odve_rand_tb_pkg;
         endfunction
 
         task run_it();
+            // off the clock edge, and past time 0: whether a variable's
+            // initial value is an edge at time 0 is up to the simulator
+            @(posedge vif.clk);
+            #1ps;
             fork
                 begin
                     for (int k = 0; k < 400; k++) begin

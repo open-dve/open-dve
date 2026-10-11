@@ -54,9 +54,13 @@ package odve_rand_pkg;
     class odve_rand;
         local static bit          m_run_seed_set;
         local static int unsigned m_run_seed;
+        local static int          m_trace_fd = -1;  // -1: +ODVE_RAND_TRACE not read yet, 0: off
+        local static string       m_trace_pat;
 
         local string m_name;
         local int    m_state;   // the $dist_uniform seed variable
+        local bit    m_traced;  // this stream is traced (known after its first draw)
+        local bit    m_trace_known;
 
         // A stream named `name`, seeded from the run seed and the name.
         function new(string name = "odve_rand");
@@ -125,7 +129,37 @@ package odve_rand_pkg;
         // takes a bare $dist_uniform for a pure function, so in a `case`
         // selector or a ?: it can be evaluated more or less than once.
         function int unsigned u16();
-            return $dist_uniform(m_state, 0, 65535);
+            int unsigned v = $dist_uniform(m_state, 0, 65535);
+            if (m_trace_fd != 0) trace(v);
+            return v;
+        endfunction
+
+        // +ODVE_RAND_TRACE writes every draw to odve_rand_trace.txt as
+        // "<time> <stream> <value>"; +ODVE_RAND_TRACE=<text> only the
+        // streams whose name contains <text>. script/rand/rand_trace_diff.py
+        // finds the first draw at which two runs differ, in value or in time.
+        local function void trace(int unsigned v);
+            if (m_trace_fd == -1) begin
+                m_trace_pat = "";
+                if ($test$plusargs("ODVE_RAND_TRACE")) begin
+                    void'($value$plusargs("ODVE_RAND_TRACE=%s", m_trace_pat));
+                    m_trace_fd = $fopen("odve_rand_trace.txt", "w");
+                end else
+                    m_trace_fd = 0;
+                if (m_trace_fd == 0) return;
+            end
+            if (!m_trace_known) begin
+                m_traced      = contains(m_name, m_trace_pat);
+                m_trace_known = 1;
+            end
+            if (m_traced) $fdisplay(m_trace_fd, "%0t %s %0d", $realtime, m_name, v);
+        endfunction
+
+        local static function bit contains(string s, string part);
+            if (part.len() == 0) return 1;
+            for (int i = 0; i + part.len() <= s.len(); i++)
+                if (s.substr(i, i + part.len() - 1) == part) return 1;
+            return 0;
         endfunction
 
         // Statement by statement: the operands of one expression may be
