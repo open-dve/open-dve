@@ -8,7 +8,10 @@
 #   tools/           Universal Ctags when none is on PATH: conda-forge via micromamba if present,
 #                    else the pinned static build from universal-ctags/ctags-nightly-build
 # --bundle X     the portable bundle made by release.py (tarball, its unpacked directory, or a
-#                URL): wheels + pip + ctags, no network and no pip needed on this host
+#                URL): wheels + pip + ctags, no network and no pip needed on this host.
+#                Default: the copy in git, script/index/bundle/<RELEASE_ASSET>, when the
+#                interpreter is the bundle's Python minor (3.12); else the online path below
+# --online       ignore the in-repo bundle (PyPI / conda-forge / ctags download)
 # --release      download the bundle pinned in tools.lock (RELEASE_URL) and use it as --bundle
 # --wheels DIR   install pyslang from wheel files in DIR (offline; pip or uv needed)
 # --tools DIR    take uctags-*.tar.xz from DIR instead of downloading (offline)
@@ -25,6 +28,7 @@ root=
 wheels=
 tools_dir=
 bundle=
+online=0
 check=0
 only=
 py=python3
@@ -35,6 +39,7 @@ while [ $# -gt 0 ]; do
     --tools) tools_dir=$2; shift 2;;
     --bundle) bundle=$2; shift 2;;
     --release) bundle=$RELEASE_URL; shift;;
+    --online) online=1; shift;;
     --python) py=$2; shift 2;;
     --check) check=1; shift;;
     --ctags-only) only=ctags; shift;;
@@ -51,6 +56,13 @@ idx="$root/.odve-index"
 mkdir -p "$idx"
 
 # ---------------------------------------------------------------- bundle (release.py)
+if [ -z "$bundle" ] && [ "$online" = 0 ] && [ -f "$here/bundle/$RELEASE_ASSET" ]; then
+  if [ "$("$py" -c 'import sys; print("cp%d%d" % sys.version_info[:2])')" = "$PY_TAG" ]; then
+    bundle="$here/bundle/$RELEASE_ASSET"
+  else
+    echo "setup.sh: in-repo bundle is for $PY_TAG, $py is not - using the online path (or pass --python python3.${PY_TAG#cp3})"
+  fi
+fi
 if [ -n "$bundle" ]; then
   case "$bundle" in
     http://*|https://*)

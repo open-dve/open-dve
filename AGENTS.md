@@ -123,8 +123,9 @@ lags - update and retry. Without the MCP, the same tools are
 `odve/script/index/odve_index.py query <tool> key=value`. First time in a
 clone: `odve/script/index/setup.sh && odve/script/index/odve_index.py build`
 (Linux; needs Python >= 3.11 for pyslang, otherwise the tag layer only).
-Without network or pip: `setup.sh --release` (or `--bundle <tarball>`) installs
-the portable bundle built by `script/index/release.py` (CPython 3.12).
+On Python 3.12 `setup.sh` needs no network or pip: it installs from the
+portable bundle tracked at `script/index/bundle/` (built by `release.py`);
+`--online` fetches instead.
 
 ## Consumers
 

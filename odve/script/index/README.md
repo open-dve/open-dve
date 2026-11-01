@@ -16,6 +16,8 @@ script/index/
   release.py         builds the portable bundle (wheels for CPython 3.12 + pip + ctags, sha256
                      manifest) from tools.lock/requirements.lock; --upload attaches it to a GitHub release
   tools.lock         pinned versions: Python tag, pip, ctags build + sha256, the release URL
+  bundle/            the bundle itself (8 MB tarball + .sha256), tracked in git: a fresh clone
+                     sets up with no network; setup.sh uses it by default on Python 3.12
   idxlib/            repo.py (root, units, filelists, tools), tags.py (ctags), semantic.py (pyslang),
                      build.py (build/update/elab), queries.py (the tools), db.py (schema)
   tests/             python3 -m unittest discover -s tests   (11 tests; semantic ones need pyslang)
@@ -40,10 +42,12 @@ elaborated units are known.
 ### Portable bundle (no network, no pip on the target)
 
 ```bash
-odve/script/index/release.py [--out DIR]          # -> odve-index-tools-<ver>-cp312-linux-x86_64.tar.gz (8 MB)
-odve/script/index/release.py --check <tarball>    # verify its MANIFEST.sha256
-odve/script/index/setup.sh --bundle <tarball|dir|URL> [--python python3.12]   # install from it
+odve/script/index/setup.sh                        # Python 3.12: installs from bundle/ in git, no network
+odve/script/index/setup.sh --online               # ignore the in-repo bundle (PyPI, conda-forge/ctags download)
+odve/script/index/setup.sh --bundle <tarball|dir|URL> [--python python3.12]   # another bundle
 odve/script/index/setup.sh --release              # fetch the bundle pinned in tools.lock (RELEASE_URL)
+odve/script/index/release.py                      # rebuild bundle/odve-index-tools-<ver>-cp312-linux-x86_64.tar.gz
+odve/script/index/release.py --check <tarball>    # verify its MANIFEST.sha256
 ```
 
 The bundle holds the wheels (pyslang abi3, nanobind-backend cp312, pip) and
@@ -55,11 +59,13 @@ target needs only python3.12 with its `venv` module (no `ensurepip`: the venv
 is made `--without-pip` and pip is installed from its own wheel), bash, tar,
 xz. `release.py` is standard library only: wheels are resolved through the
 PyPI JSON API for cp312/manylinux and verified against PyPI's sha256, ctags
-against the sha256 in `tools.lock`; the tarball is reproducible (fixed
-mtimes/owners). `release.py --upload` creates the GitHub release
+against the sha256 in `tools.lock`; the tarball is byte-reproducible (fixed
+mtimes/owners, no gzip timestamp), so a rebuild without a version bump is a
+no-op in git. `release.py --upload` creates the GitHub release
 `index-tools-<ver>` in `RELEASE_REPO` (token from `$GITHUB_TOKEN` or
 `--token-file`; `--replace` to re-attach). Bumping a tool: edit
-`tools.lock`/`requirements.lock`, bump `RELEASE_VER`, build, upload.
+`tools.lock`/`requirements.lock`, bump `RELEASE_VER`, `release.py` (writes
+the new tarball into `bundle/`; delete the old one), commit, `--upload`.
 
 The root is `ODVE_INDEX_ROOT`, else the nearest ancestor of the cwd with
 `.odve-index/`, else the nearest `.git`. In a consumer repository that is the

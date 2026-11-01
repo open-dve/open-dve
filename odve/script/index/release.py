@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Build (and optionally upload) the portable tool bundle of the code index.
 
-    script/index/release.py [--out DIR] [--cache DIR] [--version V]
+    script/index/release.py [--out DIR] [--cache DIR] [--version V]      # default --out: script/index/bundle (in git)
                             [--upload [--repo OWNER/NAME] [--token-env GITHUB_TOKEN | --token-file F] [--replace]]
     script/index/release.py --check BUNDLE.tar.gz
 
@@ -30,6 +30,7 @@ or a file (--token-file) and is never printed. Install on the other side:
 """
 import argparse
 import datetime as _dt
+import gzip
 import hashlib
 import io
 import json
@@ -171,8 +172,8 @@ def resolve_wheel(name, ver, py_tag):
 def build(out, cache, version, lock):
     py_tag = lock["PY_TAG"]
     name = f"odve-index-tools-{version}"
-    stage = os.path.join(out, "stage", name)
-    shutil.rmtree(os.path.join(out, "stage"), ignore_errors=True)
+    stage = os.path.join(cache, "stage", name)
+    shutil.rmtree(os.path.join(cache, "stage"), ignore_errors=True)
     os.makedirs(os.path.join(stage, "wheels"))
     os.makedirs(os.path.join(stage, "tools"))
     glibc = (0, 0)
@@ -201,11 +202,11 @@ def build(out, cache, version, lock):
     with open(os.path.join(stage, "MANIFEST.sha256"), "w") as f:
         f.write("\n".join(lines) + "\n")
     asset = os.path.join(out, f"{name}-{py_tag}-{PLATFORM}.tar.gz")
-    with tarfile.open(asset, "w:gz") as tf:
+    with gzip.GzipFile(asset, "wb", mtime=0) as gz, tarfile.open(fileobj=gz, mode="w") as tf:   # no gzip timestamp: reproducible
         tf.add(stage, arcname=name, filter=_tar_filter)
     with open(asset + ".sha256", "w") as f:
         f.write(f"{sha256_of(asset)}  {os.path.basename(asset)}\n")
-    shutil.rmtree(os.path.join(out, "stage"))
+    shutil.rmtree(os.path.join(cache, "stage"))
     print(f"release: {asset} ({os.path.getsize(asset) // 1024} KiB)")
     for pkg, ver, fn, how in wheels:
         print(f"  {fn} [{how}]")
@@ -310,8 +311,8 @@ Install from a clone: `odve/script/index/setup.sh --bundle <tarball>` (see READM
 # ---------------------------------------------------------------- main
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--out", help="output directory (default <root>/.odve-index/release)")
-    ap.add_argument("--cache", help="download cache directory (default <out>/cache)")
+    ap.add_argument("--out", default=os.path.join(HERE, "bundle"), help="output directory (default script/index/bundle, the copy in git)")
+    ap.add_argument("--cache", help="download cache directory (default <root>/.odve-index/release-cache)")
     ap.add_argument("--version", help="bundle version (default tools.lock RELEASE_VER)")
     ap.add_argument("--check", metavar="BUNDLE", help="verify a bundle's manifest and exit")
     ap.add_argument("--upload", action="store_true", help="attach the bundle to the GitHub release index-tools-<ver>")
@@ -326,12 +327,12 @@ def main(argv=None):
     lock = read_lock()
     version = a.version or lock["RELEASE_VER"]
     out = a.out
-    if not out:
+    os.makedirs(out, exist_ok=True)
+    cache = a.cache
+    if not cache:
         sys.path.insert(0, HERE)
         from idxlib import repo
-        out = os.path.join(repo.find_root(), ".odve-index", "release")
-    os.makedirs(out, exist_ok=True)
-    cache = a.cache or os.path.join(out, "cache")
+        cache = os.path.join(repo.find_root(), ".odve-index", "release-cache")
     asset = a.asset or build(out, cache, version, lock)
     if a.upload:
         token = ""
