@@ -1,6 +1,6 @@
 #!/bin/bash
 # One-time setup of the code-index tools for a repository (Linux):
-#   script/index/setup.sh [--root DIR] [--python PY] [--bundle FILE|DIR|URL | --online [--wheels DIR] [--tools DIR]]
+#   script/index/setup.sh [--root DIR] [--python PY] [--bundle FILE|DIR|URL | --release | --wheels DIR --tools DIR]
 #                         [--check] [--ctags-only|--pyslang-only]
 #
 # Into <root>/.odve-index/ (gitignored):
@@ -12,6 +12,7 @@
 #                Default: the copy in git, script/index/bundle/<RELEASE_ASSET>, when the
 #                interpreter is the bundle's Python minor (3.12); else the online path below
 # --online       ignore the in-repo bundle (PyPI / conda-forge / ctags download)
+# --release      download the bundle pinned in tools.lock (RELEASE_URL) and use it as --bundle
 # --wheels DIR   install pyslang from wheel files in DIR (offline; pip or uv needed)
 # --tools DIR    take uctags-*.tar.xz from DIR instead of downloading (offline)
 # --python PY    the interpreter for the venv (default python3; the bundle is for one minor, 3.12)
@@ -37,6 +38,7 @@ while [ $# -gt 0 ]; do
     --wheels) wheels=$2; shift 2;;
     --tools) tools_dir=$2; shift 2;;
     --bundle) bundle=$2; shift 2;;
+    --release) bundle=$RELEASE_URL; shift;;
     --online) online=1; shift;;
     --python) py=$2; shift 2;;
     --check) check=1; shift;;
@@ -123,7 +125,7 @@ if [ "$only" != ctags ]; then
     elif "$py" -c 'import ensurepip' 2>/dev/null; then
       "$py" -m venv "$idx/venv"
     else
-      echo "setup.sh: $py has no ensurepip and uv is not installed - use --bundle, or install python3-venv/uv" >&2
+      echo "setup.sh: $py has no ensurepip and uv is not installed - use --bundle/--release, or install python3-venv/uv" >&2
       exit 1
     fi
   fi

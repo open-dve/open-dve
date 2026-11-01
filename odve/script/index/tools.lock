@@ -6,7 +6,9 @@ CTAGS_VER=2026.10.08
 CTAGS_TAG=2026.10.08%2B82494361bb3e7d4f7cf1d2bdc0d0e9001c926e45
 CTAGS_SHA=e149d4f774cca9d6b657453f22fce97b94a5b691afaaa50f56f8564794839f87
 CTAGS_URL=https://github.com/universal-ctags/ctags-nightly-build/releases/download/${CTAGS_TAG}/uctags-${CTAGS_VER}-linux-x86_64.release.tar.xz
-# The portable bundle made by release.py (wheels + ctags, no Python), tracked at script/index/bundle/
-RELEASE_VER=2026.11.01
-RELEASE_ASSET=odve-index-tools-${RELEASE_VER}-${PY_TAG}-linux-x86_64.tar.gz
+# The portable bundle made by release.py (wheels + ctags, no Python): setup.sh --release
 RELEASE_REPO=open-dve/open-dve
+RELEASE_VER=2026.11.01
+RELEASE_TAG=index-tools-${RELEASE_VER}
+RELEASE_ASSET=odve-index-tools-${RELEASE_VER}-${PY_TAG}-linux-x86_64.tar.gz
+RELEASE_URL=https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/${RELEASE_ASSET}
