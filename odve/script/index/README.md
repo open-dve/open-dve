@@ -11,10 +11,14 @@ script/index/
   mcp_server.py      the `odve-index` MCP server (19 tools), stdio, standard library only
   mcp-server.sh      launcher for .mcp.json / Codex: finds the repo root and the venv
   mcp_stdlib.py      the minimal MCP transport (same as pcie-spec/kb)
-  setup.sh           one-time tools: venv with pyslang (requirements.lock), Universal Ctags
+  setup.sh           one-time tools: venv with pyslang (requirements.lock), Universal Ctags;
+                     --bundle/--release installs the portable bundle offline
+  release.py         builds the portable bundle (wheels for CPython 3.12 + pip + ctags, sha256
+                     manifest) from tools.lock/requirements.lock; --upload attaches it to a GitHub release
+  tools.lock         pinned versions: Python tag, pip, ctags build + sha256, the release URL
   idxlib/            repo.py (root, units, filelists, tools), tags.py (ctags), semantic.py (pyslang),
                      build.py (build/update/elab), queries.py (the tools), db.py (schema)
-  tests/             python3 -m unittest discover -s tests   (8 tests; semantic ones need pyslang)
+  tests/             python3 -m unittest discover -s tests   (11 tests; semantic ones need pyslang)
 ```
 
 ## Setup (once per clone)
@@ -25,13 +29,37 @@ odve/script/index/odve_index.py build # units from every comp/agents/*/vrf/list/
 odve/script/index/odve_index.py units
 ```
 
-`setup.sh` makes a venv with `pyslang==12.1.0` (uv if present, else venv+pip;
-`--wheels DIR` offline) and gets a Universal Ctags when none is on PATH
-(conda-forge via micromamba if present, else the pinned static build from
-`ctags-nightly-build`, sha256-checked; `--tools DIR` offline). Nothing is
-vendored in git. Without pyslang the tag layer and every query still work;
-units report `no_pyslang`. Without ctags only files of elaborated units are
-known.
+`setup.sh` makes a venv with `pyslang==12.1.0` + `nanobind-backend==1.0.0`
+(uv if present, else venv+pip; `--wheels DIR` offline) and gets a Universal
+Ctags when none is on PATH (conda-forge via micromamba if present, else the
+pinned static build from `ctags-nightly-build`, sha256-checked; `--tools DIR`
+offline). Nothing is vendored in git. Without pyslang the tag layer and every
+query still work; units report `no_pyslang`. Without ctags only files of
+elaborated units are known.
+
+### Portable bundle (no network, no pip on the target)
+
+```bash
+odve/script/index/release.py [--out DIR]          # -> odve-index-tools-<ver>-cp312-linux-x86_64.tar.gz (8 MB)
+odve/script/index/release.py --check <tarball>    # verify its MANIFEST.sha256
+odve/script/index/setup.sh --bundle <tarball|dir|URL> [--python python3.12]   # install from it
+odve/script/index/setup.sh --release              # fetch the bundle pinned in tools.lock (RELEASE_URL)
+```
+
+The bundle holds the wheels (pyslang abi3, nanobind-backend cp312, pip) and
+the ctags static build with a manifest; Python itself is not in it. It is
+built for **CPython 3.12** (any patch level, 3.12.1 included - the
+nanobind-backend wheel is per minor) on linux x86_64 with glibc >= 2.27, and
+`setup.sh --bundle` refuses a different interpreter (pass `--python`). The
+target needs only python3.12 with its `venv` module (no `ensurepip`: the venv
+is made `--without-pip` and pip is installed from its own wheel), bash, tar,
+xz. `release.py` is standard library only: wheels are resolved through the
+PyPI JSON API for cp312/manylinux and verified against PyPI's sha256, ctags
+against the sha256 in `tools.lock`; the tarball is reproducible (fixed
+mtimes/owners). `release.py --upload` creates the GitHub release
+`index-tools-<ver>` in `RELEASE_REPO` (token from `$GITHUB_TOKEN` or
+`--token-file`; `--replace` to re-attach). Bumping a tool: edit
+`tools.lock`/`requirements.lock`, bump `RELEASE_VER`, build, upload.
 
 The root is `ODVE_INDEX_ROOT`, else the nearest ancestor of the cwd with
 `.odve-index/`, else the nearest `.git`. In a consumer repository that is the

@@ -1,1 +1,2 @@
 pyslang==12.1.0
+nanobind-backend==1.0.0
