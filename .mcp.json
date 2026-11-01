@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "odve-index": {
+      "type": "stdio",
+      "command": "odve/script/index/mcp-server.sh",
+      "args": [],
+      "env": {}
+    }
+  }
+}

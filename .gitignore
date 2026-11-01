@@ -30,3 +30,4 @@ odve/comp/agents/*/vrf/work/*/*/cov.ucdb
 **/ut/work_modelsim/
 **/ut/work_verilator/
 **/ut/*.dump*
+.odve-index/

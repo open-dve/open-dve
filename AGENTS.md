@@ -64,6 +64,7 @@ Log     : .../work/run/apb_read/run.log
 - `script/verilator-docker/` — containerised Verilator: `setup.sh` (one-time image fetch, with OS/engine detection and an offline `--load` path) and `bin/verilator` (docker/podman shim used as `$VERILATOR_ROOT/bin/verilator`).
 - `script/regress/` — the regression runner: `regress.py` (entry point), `readlist.py` (parses `*.list` files), `list2json.py` (converts parsed runs to job commands), `jobrunner.py` (parallel job execution), `list2json.py`.
 - `script/cov/` — coverage tooling, standard library only: `covgen.py` (`scan` at build time under `FCOV=1`; `merge`/`report`/`codecov`/`analyze`/`export`/`env` after runs) over `covlib/` (model, filelist reader, covergroup-subset parser, generator, dump merge, UCIS-XML writer, lcov parser/renderer, reports; unit tests in `covlib/tests/`). Design and phases: `odve/doc/fcov-plan.md`.
+- `script/index/` — the **code index** and its `odve-index` MCP server (`script/index/README.md`, design in `doc/index-plan.md`): Universal Ctags over every HDL file plus pyslang over each agent's `vrf/list/fl.f` (symbols, references, elaborated instance tree, class bases, `type_id::create` edges) in `<root>/.odve-index/index.db`; `setup.sh` once, `odve_index.py build`, then the MCP tools (`sym_def`, `sym_refs`, `sym_outline`, `hier_tree`, `tb_tree`, `fl_resolve`, ...) or `odve_index.py query <tool>`. A PostToolUse hook keeps it current after every edit.
 - `script/schedule/`, `script/pdf/pdf2req/` — scheduling and requirements-doc tooling (early/placeholder).
 - `svunit/svunit-3.38.1/` — vendored SVUnit for unit tests of SystemVerilog units outside a UVM testbench; `script/common/ut.mk` gives any `ut/` folder (`*_unit_test.sv` + `svunit.f`) a `make ut [VERILATOR=1]` target; `comp/common/cov/ut/` tests the coverage runtime this way.
 - `uvm/` — vendored UVM library sources: `uvm-1.1d` (default, per `common_sourceme`) and `1800.2-2020-2.0` (available, not default). Used instead of relying on a simulator-provided UVM.
@@ -104,6 +105,25 @@ The UVM DPI library (`uvm_dpi.cc` → `build/uvm_dpi.o` → `uvm_dpi.dll`/`.so`,
 
 All of these are set by the relevant `sourceme` script — always `source sourceme` before running `make` in a `work/` directory.
 
+## Navigating the code: use the index, not the files
+
+Agents navigate SystemVerilog through the `odve-index` MCP (registered in
+`.mcp.json`; skills `sv-navigate` and `sv-raw-review`): `sym_def`/`sym_find`
+(where is X), `sym_refs` (who uses X), `sym_outline`/`sym_members` (what a
+file or class declares), `hier_tree`/`hier_instance` (the elaborated DUT/TB
+instance tree per unit), `tb_tree`/`class_info` (the UVM component tree as
+the code creates it), `fl_list`/`fl_resolve`/`fl_of_file` (what a filelist
+compiles), `file_deps`, `diag`, `code_at` (the lines around a location).
+Read a source file only at the lines a query points to, or when a tool
+answers with `error` (its `fallback` says what to do); never read `uvm/`
+sources for an API. After writing or editing `.sv/.svh/.f` files the
+PostToolUse hook re-indexes (Claude Code); other agents call
+`index_update(paths)`. An answer with `stale`/`dirty_units` means the index
+lags - update and retry. Without the MCP, the same tools are
+`odve/script/index/odve_index.py query <tool> key=value`. First time in a
+clone: `odve/script/index/setup.sh && odve/script/index/odve_index.py build`
+(Linux; needs Python >= 3.11 for pyslang, otherwise the tag layer only).
+
 ## Consumers
 
-Downstream repos (e.g. `amba-axi`) pull this repo in as a `odve` git submodule and build their own agent on top of `comp/common/` and `script/`. When changing shared scripts (`script/common/common.mk`, `script/source/common_sourceme`, `script/regress/*`), check for impact across all agents in `comp/agents/`, not just the one you're editing.
+Downstream repos (e.g. `amba-axi`, `pcie-vip`) pull this repo in as a `odve` git submodule and build their own agent on top of `comp/common/` and `script/`. They get the code index too: one `.odve-index/` at the consumer's root covers their agents and the submodule's (`script/index/README.md`, "Using it from a consumer repository": `.mcp.json`, the hook, the Codex entry). When changing shared scripts (`script/common/common.mk`, `script/source/common_sourceme`, `script/regress/*`), check for impact across all agents in `comp/agents/`, not just the one you're editing.
