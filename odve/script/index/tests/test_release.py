@@ -31,7 +31,8 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual(lock["PY_TAG"], "cp312")
         self.assertTrue(lock["CTAGS_URL"].endswith(f"uctags-{lock['CTAGS_VER']}-linux-x86_64.release.tar.xz"))
         self.assertIn(lock["CTAGS_TAG"], lock["CTAGS_URL"])
-        self.assertEqual(lock["RELEASE_URL"], f"https://github.com/{lock['RELEASE_REPO']}/releases/download/{lock['RELEASE_TAG']}/{lock['RELEASE_ASSET']}")
+        self.assertEqual(lock["RELEASE_ASSET"], f"odve-index-tools-{lock['RELEASE_VER']}-cp312-linux-x86_64.whl".replace(".whl", ".tar.gz"))
+        self.assertTrue(os.path.exists(os.path.join(os.path.dirname(HERE), "bundle", lock["RELEASE_ASSET"])))
         self.assertEqual(len(lock["CTAGS_SHA"]), 64)
         self.assertEqual([n for n, _ in release.read_requirements()], ["pyslang", "nanobind-backend"])
 

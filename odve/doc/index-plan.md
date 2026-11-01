@@ -274,8 +274,9 @@ host is built by `release.py` and installed by `setup.sh --bundle`
 index work on a fresh clone with no network at the cost of 8 MB in history,
 which is what the coverage work decided against; the plan assumes fetch +
 lock + bundle. The user then decided otherwise (2026-11-01): the 8 MB
-bundle is tracked in git at `script/index/bundle/` as well as attached to
-a GitHub release, Python itself not included, built for CPython 3.12.
+bundle is tracked in git at `script/index/bundle/` and that is the only
+distribution (no GitHub release, 2026-11-02), Python itself not included,
+built for CPython 3.12.
 
 Windows: out of scope for now (decided 2026-11-01). The tools have Windows
 binaries and the code keeps paths repo-relative with `/`, so it is a
@@ -321,11 +322,10 @@ included because a target may have no pip or ensurepip - true of the
 development host), verifies them against PyPI's sha256 and the ctags
 tarball against `tools.lock`, writes `MANIFEST.sha256` and a reproducible
 `odve-index-tools-<ver>-cp312-linux-x86_64.tar.gz` (8 MB; glibc >= 2.27),
-into `script/index/bundle/` (tracked in git, per the user's decision) and
-`--upload`s it to the GitHub release `index-tools-<ver>`. `setup.sh` takes
+into `script/index/bundle/` (tracked in git, per the user's decision; the
+`--upload` to a GitHub release exists but is not used). `setup.sh` takes
 that in-repo bundle by default on Python 3.12 (`--online` to fetch
-instead); `--bundle` (tarball, directory or URL; `--release` = the URL
-pinned in `tools.lock`) takes another one. Either way it checks the manifest and the interpreter's minor, makes the
+instead); `--bundle` (tarball, directory or URL) takes another one. Either way it checks the manifest and the interpreter's minor, makes the
 venv `--without-pip`, installs pip and the wheels from the bundle, unpacks
 ctags. Verified on a fresh root with `/usr/bin/python3.12` (no pip, no
 ensurepip, `PATH=/usr/bin:/bin`, no uv/micromamba): `--check` ok, index
