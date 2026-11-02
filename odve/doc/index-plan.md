@@ -268,11 +268,16 @@ In git: `script/index/` (indexer, MCP server, stdlib MCP transport, hooks,
 | slang-server 0.3.1 | `--editor`: release archive per platform, pinned, sha256 | same | no editor lane |
 
 `setup.sh --check` prints the active tool per layer, the same style as
-`verilator-docker/setup.sh --check`. `setup.sh --bundle out.tar` writes the
-offline bundle for an air-gapped host. Decision for the user (§6): wheels in
-git would make the index work on a fresh clone with no network at the cost
-of 8 MB in history, which is what the coverage work decided against; the
-plan assumes fetch + lock + bundle unless told otherwise.
+`verilator-docker/setup.sh --check`. The offline bundle for an air-gapped
+host is built by `release.py` and installed by `setup.sh --bundle`
+(see "Results"). Decision for the user (§6): wheels in git would make the
+index work on a fresh clone with no network at the cost of 8 MB in history,
+which is what the coverage work decided against; the plan assumes fetch +
+lock + bundle. The user then decided otherwise (2026-11-01): the 8 MB
+bundle is tracked in git at `script/index/bundle/` (the distribution); the
+GitHub-release upload (`release.py --upload`, `setup.sh --release`) is kept
+as an option, not done yet (2026-11-02). Python itself not included, built
+for CPython 3.12.
 
 Windows: out of scope for now (decided 2026-11-01). The tools have Windows
 binaries and the code keeps paths repo-relative with `/`, so it is a
@@ -309,6 +314,26 @@ plan: references also come from member access, `new` and declared types
 not stored; the soft warning hook on raw reads is not implemented (the
 rule lives in `AGENTS.md` and the skills); `covgen.py check`-style
 staleness is per answer (`stale`, `dirty_units`), not a command.
+
+**Portable bundle (2026-11-01).** `release.py` (standard library) resolves
+the wheels through the PyPI JSON API for CPython 3.12 / manylinux x86_64
+(pyslang 12.1.0 is abi3, but its dependency nanobind-backend 1.0.0 ships
+per-minor `cp312` wheels, so one bundle per Python minor; pip 26.2.2 is
+included because a target may have no pip or ensurepip - true of the
+development host), verifies them against PyPI's sha256 and the ctags
+tarball against `tools.lock`, writes `MANIFEST.sha256` and a reproducible
+`odve-index-tools-<ver>-cp312-linux-x86_64.tar.gz` (8 MB; glibc >= 2.27),
+into `script/index/bundle/` (tracked in git, per the user's decision) and
+`--upload`s it to the GitHub release `index-tools-<ver>`. `setup.sh` takes
+that in-repo bundle by default on Python 3.12 (`--online` to fetch
+instead); `--bundle` (tarball, directory or URL; `--release` = the URL
+pinned in `tools.lock`) takes another one. Either way it checks the manifest and the interpreter's minor, makes the
+venv `--without-pip`, installs pip and the wheels from the bundle, unpacks
+ctags. Verified on a fresh root with `/usr/bin/python3.12` (no pip, no
+ensurepip, `PATH=/usr/bin:/bin`, no uv/micromamba): `--check` ok, index
+tests 11/11 with the bundled ctags. All pins live in `tools.lock`
+(`PY_TAG`, `PIP_VER`, `CTAGS_*`, `RELEASE_*`); `requirements.lock` now
+pins nanobind-backend too.
 
 ## 5. Risks
 

@@ -55,7 +55,8 @@ in no elaborated unit (`fl_of_file` says which) or the unit failed
 ## Keeping the index
 
 - First time in a clone: `odve/script/index/setup.sh` (venv with pyslang,
-  ctags) then `odve/script/index/odve_index.py build`.
+  ctags; on Python 3.12 from the bundle in `script/index/bundle/`, no
+  network; see `script/index/README.md`) then `odve/script/index/odve_index.py build`.
 - A new agent (`vrf-new-agent`) or a new `.f`: `index_update(paths=[<agent dir>])`
   or `odve_index.py build` - units are discovered from `vrf/list/fl.f`.
 - Elaboration of a unit takes 0.3 s (apb) to ~12 s (pcie-v); `index_update`

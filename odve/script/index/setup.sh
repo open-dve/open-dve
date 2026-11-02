@@ -1,13 +1,21 @@
 #!/bin/bash
 # One-time setup of the code-index tools for a repository (Linux):
-#   script/index/setup.sh [--root DIR] [--wheels DIR] [--tools DIR] [--check] [--ctags-only|--pyslang-only]
+#   script/index/setup.sh [--root DIR] [--python PY] [--bundle FILE|DIR|URL | --release | --wheels DIR --tools DIR]
+#                         [--check] [--ctags-only|--pyslang-only]
 #
 # Into <root>/.odve-index/ (gitignored):
 #   venv/            Python venv with pyslang pinned by requirements.lock (uv if present, else venv+pip)
 #   tools/           Universal Ctags when none is on PATH: conda-forge via micromamba if present,
 #                    else the pinned static build from universal-ctags/ctags-nightly-build
-# --wheels DIR   install pyslang from wheel files in DIR (offline)
+# --bundle X     the portable bundle made by release.py (tarball, its unpacked directory, or a
+#                URL): wheels + pip + ctags, no network and no pip needed on this host.
+#                Default: the copy in git, script/index/bundle/<RELEASE_ASSET>, when the
+#                interpreter is the bundle's Python minor (3.12); else the online path below
+# --online       ignore the in-repo bundle (PyPI / conda-forge / ctags download)
+# --release      download the bundle pinned in tools.lock (RELEASE_URL) and use it as --bundle
+# --wheels DIR   install pyslang from wheel files in DIR (offline; pip or uv needed)
 # --tools DIR    take uctags-*.tar.xz from DIR instead of downloading (offline)
+# --python PY    the interpreter for the venv (default python3; the bundle is for one minor, 3.12)
 # --check        report what is active and exit (0 when both layers are usable)
 #
 # Nothing here is needed for the tag layer if a Universal Ctags >= 6.0 with
@@ -15,33 +23,72 @@
 # queries at all - setup only adds the tools that build the index.
 set -e
 here=$(cd "$(dirname "$0")" && pwd -P)
+. "$here/tools.lock"
 root=
 wheels=
 tools_dir=
+bundle=
+online=0
 check=0
 only=
+py=python3
 while [ $# -gt 0 ]; do
   case "$1" in
     --root) root=$2; shift 2;;
     --wheels) wheels=$2; shift 2;;
     --tools) tools_dir=$2; shift 2;;
+    --bundle) bundle=$2; shift 2;;
+    --release) bundle=$RELEASE_URL; shift;;
+    --online) online=1; shift;;
+    --python) py=$2; shift 2;;
     --check) check=1; shift;;
     --ctags-only) only=ctags; shift;;
     --pyslang-only) only=pyslang; shift;;
-    -h|--help) sed -n 2,16p "$0"; exit 0;;
+    -h|--help) sed -n 2,20p "$0"; exit 0;;
     *) echo "setup.sh: unknown option $1" >&2; exit 2;;
   esac
 done
+command -v "$py" >/dev/null 2>&1 || { echo "setup.sh: python not found: $py" >&2; exit 1; }
 if [ -z "$root" ]; then
-  root=$(ODVE_INDEX_NO_REEXEC=1 python3 -c "import sys; sys.path.insert(0, '$here'); from idxlib import repo; print(repo.find_root())")
+  root=$(ODVE_INDEX_NO_REEXEC=1 "$py" -c "import sys; sys.path.insert(0, '$here'); from idxlib import repo; print(repo.find_root())")
 fi
 idx="$root/.odve-index"
 mkdir -p "$idx"
 
-CTAGS_VER=2026.10.08
-CTAGS_TAG='2026.10.08%2B82494361bb3e7d4f7cf1d2bdc0d0e9001c926e45'
-CTAGS_SHA=e149d4f774cca9d6b657453f22fce97b94a5b691afaaa50f56f8564794839f87
-CTAGS_URL="https://github.com/universal-ctags/ctags-nightly-build/releases/download/${CTAGS_TAG}/uctags-${CTAGS_VER}-linux-x86_64.release.tar.xz"
+# ---------------------------------------------------------------- bundle (release.py)
+if [ -z "$bundle" ] && [ "$online" = 0 ] && [ -f "$here/bundle/$RELEASE_ASSET" ]; then
+  if [ "$("$py" -c 'import sys; print("cp%d%d" % sys.version_info[:2])')" = "$PY_TAG" ]; then
+    bundle="$here/bundle/$RELEASE_ASSET"
+  else
+    echo "setup.sh: in-repo bundle is for $PY_TAG, $py is not - using the online path (or pass --python python3.${PY_TAG#cp3})"
+  fi
+fi
+if [ -n "$bundle" ]; then
+  case "$bundle" in
+    http://*|https://*)
+      mkdir -p "$idx/bundle"
+      f="$idx/bundle/$(basename "$bundle")"
+      echo "setup.sh: downloading $bundle"
+      curl -sSfL -o "$f" "$bundle"
+      bundle=$f;;
+  esac
+  if [ -f "$bundle" ]; then
+    mkdir -p "$idx/bundle"
+    tar -xzf "$bundle" -C "$idx/bundle"
+    bundle="$idx/bundle/$(tar -tzf "$bundle" | head -1 | cut -d/ -f1)"
+  fi
+  [ -f "$bundle/MANIFEST.sha256" ] || { echo "setup.sh: not a bundle (no MANIFEST.sha256): $bundle" >&2; exit 1; }
+  (cd "$bundle" && sha256sum --quiet -c MANIFEST.sha256) || { echo "setup.sh: bundle manifest mismatch in $bundle" >&2; exit 1; }
+  bpy=$(sed -n 's/^python=//p' "$bundle/VERSION")
+  hpy=$("$py" -c 'import sys; print("cp%d%d" % sys.version_info[:2])')
+  if [ "$bpy" != "$hpy" ]; then
+    echo "setup.sh: bundle is for $bpy, $py is $hpy - pass --python python3.${bpy#cp3}" >&2
+    exit 1
+  fi
+  wheels="$bundle/wheels"
+  tools_dir="$bundle/tools"
+  echo "setup.sh: using bundle $(sed -n 's/^version=//p' "$bundle/VERSION") from $bundle"
+fi
 
 status() {
   ODVE_INDEX_NO_REEXEC=1 "$1" - "$root" "$here" <<'PY'
@@ -59,7 +106,7 @@ PY
 }
 
 py_for_status() {
-  if [ -x "$idx/venv/bin/python" ]; then echo "$idx/venv/bin/python"; else command -v python3; fi
+  if [ -x "$idx/venv/bin/python" ]; then echo "$idx/venv/bin/python"; else command -v "$py"; fi
 }
 
 if [ "$check" = 1 ]; then
@@ -69,12 +116,17 @@ fi
 # ---------------------------------------------------------------- pyslang
 if [ "$only" != ctags ]; then
   if [ ! -x "$idx/venv/bin/python" ]; then
-    pyv=$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')
-    case "$pyv" in 3.11|3.12|3.13|3.14) ;; *) echo "setup.sh: pyslang needs Python >= 3.11, python3 is $pyv" >&2; exit 1;; esac
-    if command -v uv >/dev/null 2>&1; then
-      uv venv -q "$idx/venv" -p python3
+    pyv=$("$py" -c 'import sys; print("%d.%d" % sys.version_info[:2])')
+    case "$pyv" in 3.11|3.12|3.13|3.14) ;; *) echo "setup.sh: pyslang needs Python >= 3.11, $py is $pyv" >&2; exit 1;; esac
+    if [ -n "$bundle" ]; then
+      "$py" -m venv --without-pip "$idx/venv"      # pip comes from the bundle; ensurepip may be absent
+    elif command -v uv >/dev/null 2>&1; then
+      uv venv -q "$idx/venv" -p "$py"
+    elif "$py" -c 'import ensurepip' 2>/dev/null; then
+      "$py" -m venv "$idx/venv"
     else
-      python3 -m venv "$idx/venv"
+      echo "setup.sh: $py has no ensurepip and uv is not installed - use --bundle/--release, or install python3-venv/uv" >&2
+      exit 1
     fi
   fi
   if ! "$idx/venv/bin/python" -c 'import pyslang' 2>/dev/null; then
@@ -83,17 +135,21 @@ if [ "$only" != ctags ]; then
     else
       pipargs=
     fi
-    if command -v uv >/dev/null 2>&1; then
-      uv pip install -q -p "$idx/venv/bin/python" $pipargs -r "$here/requirements.lock"
+    vpy="$idx/venv/bin/python"
+    if [ -n "$bundle" ]; then
+      pipwhl=$(ls "$wheels"/pip-*.whl | head -1)
+      "$vpy" "$pipwhl/pip" install -q $pipargs pip -r "$here/requirements.lock"   # pip run from its wheel, installs itself too
+    elif command -v uv >/dev/null 2>&1; then
+      uv pip install -q -p "$vpy" $pipargs -r "$here/requirements.lock"
     else
-      "$idx/venv/bin/python" -m pip install -q $pipargs -r "$here/requirements.lock"
+      "$vpy" -m pip install -q $pipargs -r "$here/requirements.lock"
     fi
   fi
 fi
 
 # ---------------------------------------------------------------- ctags
 if [ "$only" != pyslang ]; then
-  have=$(ODVE_INDEX_NO_REEXEC=1 python3 -c "import sys; sys.path.insert(0, '$here'); from idxlib import repo; print(repo.find_ctags('$root') or '')")
+  have=$(ODVE_INDEX_NO_REEXEC=1 "$py" -c "import sys; sys.path.insert(0, '$here'); from idxlib import repo; print(repo.find_ctags('$root') or '')")
   if [ -z "$have" ]; then
     mkdir -p "$idx/tools"
     if [ -n "$tools_dir" ] && ls "$tools_dir"/uctags-*linux-x86_64*.tar.xz >/dev/null 2>&1; then
