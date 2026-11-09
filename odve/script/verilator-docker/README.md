@@ -90,6 +90,24 @@ path is patched for the flat `bin/ include/ lib/` layout, `verilated.mk`'s
 To refresh it after a `--native` upgrade: `./setup.sh --pack-portable`, then
 commit the new tarball.
 
+## No root, no containers, no network, no compiler: `--bundle`
+
+`--portable` still needs a `g++` >= 10 and `make` on the host, which a CAD
+server often lacks. The full bundle in `../verilator-portable/` carries
+Verilator **and** the g++ toolchain, make and perl in one relocatable folder
+(224 MB, glibc >= 2.17; a GitHub release asset, not in git). From this
+directory:
+
+```bash
+./setup.sh --bundle /path/to/odve-verilator-5.054-linux-x86_64.tar.gz   # a copied file
+./setup.sh --bundle                                                      # the release URL
+```
+
+Both forward to `../verilator-portable/install.sh`, which unpacks under
+`$HOME/opt/`, relocates the files, builds a test design with the bundled g++
+and writes `native.env` — the same contract as `--native`/`--portable`. See
+`../verilator-portable/README.md` for how it is built and published.
+
 ## Offline / air-gapped hosts (e.g. CAD machines)
 
 On a machine **with** internet:
@@ -123,6 +141,7 @@ Apptainer just needs to consume it on the offline one.
 | `./setup.sh --native` | no container: install Verilator, g++ and make from conda-forge under `$HOME` and write `native.env` |
 | `./setup.sh --portable` | no container, no network: unpack the vendored `prebuilt/` tarball for this host and write `native.env` |
 | `./setup.sh --pack-portable` | maintainers: rebuild the `prebuilt/` tarball from the `--native` install |
+| `./setup.sh --bundle [FILE\|URL]` | no container, no network, no host compiler: install the full Verilator + g++ + make bundle (`../verilator-portable/install.sh`), default the release URL |
 
 ## Environment variables
 

@@ -38,7 +38,7 @@ source sourceme
 
 Exports `ODVE`, `ODVE_<AGENT>`, `PROJ`, and pulls in `odve/script/source/common_sourceme` (sets `ODVE_UVM`, locates `MS_HOME` from `vsim` on `PATH`, and points `VERILATOR_ROOT` at the containerised Verilator in `odve/script/verilator-docker/`).
 
-**Verilator prerequisite:** one of three installs, all managed by `odve/script/verilator-docker/setup.sh` (`--check` reports which is active): the container image (docker/podman/apptainer), `--native` (conda-forge under `$HOME`, no root), or `--portable` (the tarball vendored in `prebuilt/`, no root, no network). A native/portable install writes `native.env`, which `sourceme` picks up automatically. If `make ... VERILATOR=1` complains, run `setup.sh --check` first and follow what it says.
+**Verilator prerequisite:** one of four installs, all managed by `odve/script/verilator-docker/setup.sh` (`--check` reports which is active): the container image (docker/podman/apptainer), `--native` (conda-forge under `$HOME`, no root), `--portable` (the Verilator-only tarball vendored in `prebuilt/`, no root, no network, host g++ >= 10 needed), or `--bundle <tarball>` (the full bundle from `odve/script/verilator-portable/`: Verilator + g++ + make + perl, no root, no network, no host compiler - for CAD machines; a GitHub release asset, not in git). A native/portable/bundle install writes `native.env`, which `sourceme` picks up automatically. If `make ... VERILATOR=1` complains, run `setup.sh --check` first and follow what it says.
 
 **Questa prerequisite:** `vsim` on `PATH`. If it isn't, say Questa isn't available rather than guessing at results.
 

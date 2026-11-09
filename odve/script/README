@@ -37,6 +37,15 @@ the containerised one.
 `setup.sh` (container image, or a no-root `--native`/`--portable` install) and
 the `bin/verilator` shim. Has its own `README.md`.
 
+## verilator-portable/ - Verilator + g++ + make in one folder
+
+For hosts with no internet, no docker and no compiler (CAD servers): `build.sh`
+makes a 224 MB relocatable bundle (Verilator 5.054, gcc 15, make, perl, glibc
+2.17 sysroot) from conda-forge, `install.sh` unpacks and relocates it on the
+target and writes `verilator-docker/native.env`, `release.py` uploads it as a
+GitHub release asset (it is not in git). `verilator-docker/setup.sh --bundle`
+is a shortcut to `install.sh`. Has its own `README.md`.
+
 ## schedule/, pdf/pdf2req/
 
 Scheduling and requirements-document tooling; early, not part of the agent flow.
