@@ -1,5 +1,6 @@
-`define odve_rand ( obj ) \
-obj.user_randomize();
+`ifndef ODVE_MACRO_SV
+`define ODVE_MACRO_SV
+`define odve_rand(obj) obj.user_randomize();
 
 // Functional coverage (doc/fcov-plan.md 4.1). The covergroup itself is written
 // in standard syntax inside an `ifdef ODVE_COV_NATIVE block at package scope;
@@ -21,4 +22,5 @@ obj.user_randomize();
 `else
 `define odve_cov_create(NAME)
 `define odve_cov_sample(grp, a1, a2=, a3=, a4=, a5=, a6=, a7=, a8=)
+`endif
 `endif

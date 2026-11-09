@@ -16,9 +16,25 @@
 `define ODVE_COVCNT 1
 `endif
 
+// Reporting (used inside the package only). With UVM (the default) an ODVE_COV_ERR is a uvm_error; without
+// it (+define+ODVE_COV_NO_UVM: unit tests, testbenches that do not use UVM)
+// it is a $display. Either way odve_cov_errors counts them, so a test can
+// check that an error was raised without parsing a log.
+`ifdef ODVE_COV_NO_UVM
+`define ODVE_COV_ERR(msg)  begin odve_cov_errors++; $display("ODVE_COV ERROR: %s", msg); end
+`define ODVE_COV_WARN(msg) $display("ODVE_COV WARNING: %s", msg);
+`else
+`define ODVE_COV_ERR(msg)  begin odve_cov_errors++; `uvm_error("ODVE_COV", msg) end
+`define ODVE_COV_WARN(msg) `uvm_warning("ODVE_COV", msg)
+`endif
+
 package odve_cov_pkg;
+`ifndef ODVE_COV_NO_UVM
     import uvm_pkg::*;
     `include "uvm_macros.svh"
+`endif
+
+    int odve_cov_errors = 0;   // ODVE_COV_ERRs raised so far
 
     localparam int N = `ODVE_COV_N;      // total bins over all groups (flat layout)
     localparam int W = `ODVE_COVCNT;     // bits per counter: 1 = hit/not hit, 32 = hit count
@@ -52,6 +68,14 @@ package odve_cov_pkg;
         static string           dump     = "";  // +odve_cov_dump: file to write, "" = no dump
         static string           test     = "";  // +odve_cov_test: test name for the header
         static bit              inited   = 0;
+        static bit              frozen   = 0;   // hit() drops samples while set (a readback wants a stable store)
+        static bit              ext_dumped = 0; // another backend already wrote <dump>: final_dump() leaves it
+
+        // Emulation backend (odve_cov_emu.sv): with an odve_cov_emu_feed in
+        // the testbench every hit is also queued here, and the feed drives
+        // it onto the block's sample port one per clock.
+        static bit              emu = 0;
+        static int              smp_q[$];
 
         // Plusargs. Called from odve_cov_final's initial and lazily from the
         // first group, whichever comes first (initial vs build_phase order is
@@ -67,29 +91,56 @@ package odve_cov_pkg;
         // The one hot path: increment a bin, saturating.
         static function void hit(int idx);
             if (idx < 0 || idx >= N) begin
-                `uvm_error("ODVE_COV", $sformatf("bin index %0d out of range (N=%0d) - ignored", idx, N))
+                `ODVE_COV_ERR($sformatf("bin index %0d out of range (N=%0d) - ignored", idx, N))
                 return;
             end
+            if (frozen) return;
             if (cnt[idx] != {W{1'b1}}) cnt[idx] = cnt[idx] + 1'b1;
             nsamples++;
-            if (every != 0 && (nsamples % every) == 0) checkpoint();
+            if (emu) smp_q.push_back(idx);
+            if (every != 0 && (nsamples % longint'(every)) == 0) checkpoint();
         endfunction
 
         // Dump format (doc/fcov-plan.md 4.2): header lines, "idx count" for
         // non-zero bins only, then a closing "# end <tag>" line - a reader
-        // treats a file without it as truncated.
-        static function void write(string path, string tag);
+        // treats a file without it as truncated. `backend` names another
+        // source of the counts ("emu"); "" is this store.
+        static function int open_dump(string path, longint unsigned samples, string backend);
             int fd = $fopen(path, "w");
             if (fd == 0) begin
-                `uvm_warning("ODVE_COV", $sformatf("cannot open %s for writing", path))
-                return;
+                `ODVE_COV_WARN($sformatf("cannot open %s for writing", path))
+                return 0;
             end
             $fwrite(fd, "# odve-cov 1\n");
             $fwrite(fd, "# model %s hash %s\n", `ODVE_COV_MODEL, `ODVE_COV_HASH);
             $fwrite(fd, "# test %s covcnt %0d n %0d\n", test, W, N);
-            $fwrite(fd, "# samples %0d\n", nsamples);
+            $fwrite(fd, "# samples %0d\n", samples);
+            if (backend != "") $fwrite(fd, "# backend %s\n", backend);
+            return fd;
+        endfunction
+
+        static function void write(string path, string tag);
+            int fd = open_dump(path, nsamples, "");
+            if (fd == 0) return;
             for (int i = 0; i < N; i++)
                 if (cnt[i] != 0) $fwrite(fd, "%0d %0d\n", i, cnt[i]);
+            $fwrite(fd, "# end %s\n", tag);
+            $fclose(fd);
+        endfunction
+
+        // The same file from counts read back from another backend
+        // (odve_cov_emu over APB); counts.size() must be N.
+        static function void write_ext(input string path, input string tag, ref int unsigned counts[],
+                                       input longint unsigned samples, input string backend);
+            int fd;
+            if (counts.size() != N) begin
+                `ODVE_COV_ERR($sformatf("write_ext: %0d counts for N=%0d bins - no dump", counts.size(), N))
+                return;
+            end
+            fd = open_dump(path, samples, backend);
+            if (fd == 0) return;
+            for (int i = 0; i < N; i++)
+                if (counts[i] != 0) $fwrite(fd, "%0d %0d\n", i, counts[i]);
             $fwrite(fd, "# end %s\n", tag);
             $fclose(fd);
         endfunction
@@ -104,7 +155,7 @@ package odve_cov_pkg;
 
         static function void final_dump();
             init();
-            if (dump != "") write(dump, "final");
+            if (dump != "" && !ext_dumped) write(dump, "final");
         endfunction
     endclass
 
@@ -171,13 +222,13 @@ package odve_cov_pkg;
         endfunction
 
         function void illegal(string point, longint value);
-            `uvm_error("ODVE_COV", $sformatf("%s.%s: illegal bin hit by value %0d", name, point, value))
+            `ODVE_COV_ERR($sformatf("%s.%s: illegal bin hit by value %0d", name, point, value))
         endfunction
 
         // A generated sample() calls this on its spare formals.
         function void check_spare(longint a, int pos);
             if (a != NA)
-                `uvm_error("ODVE_COV", $sformatf("%s: sample() called with an argument in position %0d, but the covergroup declares fewer", name, pos))
+                `ODVE_COV_ERR($sformatf("%s: sample() called with an argument in position %0d, but the covergroup declares fewer", name, pos))
         endfunction
     endclass
 

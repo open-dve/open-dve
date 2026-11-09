@@ -1,1 +1,2 @@
-apb_read : TESTNAME=read_test
+apb_rw     : TESTNAME=rw_test
+apb_rw_seq : TESTNAME=rw_test RUN_OPTS+=+apb_slave=seq

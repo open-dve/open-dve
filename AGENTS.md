@@ -57,7 +57,7 @@ Log     : .../work/run/apb_read/run.log
 
 ### Repo layout (under `odve/`)
 
-- `comp/agents/<protocol>/` — one UVM agent per protocol: `apb`, `axi`, `ahb`, `jtag`, `spi`, `uart`. **`apb` is the most complete and is the best reference implementation** to copy patterns from when building out another agent.
+- `comp/agents/<protocol>/` — one UVM agent per protocol: `apb`, `axi`, `ahb`, `jtag`, `spi`, `uart`. **`apb` is the complete reference implementation** (agent + DUT + env/scoreboard + tests + coverage) to copy patterns from when building out another agent.
 - `comp/common/` — shared base classes (`base/odve_common_base_item.sv`), macros (`macro/odve_macro.sv`: `` `odve_rand ``, `` `odve_cov_create ``, `` `odve_cov_sample ``), the functional-coverage runtime (`cov/odve_cov_pkg.sv`: package-static counter store + base class of the generated groups; `cov/odve_cov_final.sv`: the `final` dump) and the random-number package (`rand/odve_rand_pkg.sv`: class `odve_rand`, the same values for the same `+SEED` on every simulator; rules in `rand/README`). See `comp/common/README`.
 - `script/common/common.mk` — the single shared Make include behind every agent's `vrf/work/*/Makefile`. Defines the `prework/preuvm/auvm/predut/adut/pretb/atb/elib/run/clean/rclean/aclean` targets and the `FL_TB`/`FL_UVM`/`FL_DUT`/`TOP`/`TESTNAME`/`RUN_DIR`/`COMP_DIR` variables.
 - `script/source/common_sourceme` — sets `ODVE_UVM`, locates the Questa install (`MS_HOME`) from `vsim` on `PATH` plus its bundled gcc (`MS_GCC_PATH`: MinGW on Windows, `gcc-*-linux` on Linux), and points `VERILATOR_ROOT` at the containerised Verilator in `script/verilator-docker/` (preset `VERILATOR_ROOT` yourself to use a native install instead).
@@ -65,29 +65,31 @@ Log     : .../work/run/apb_read/run.log
 - `script/regress/` — the regression runner: `regress.py` (entry point), `readlist.py` (parses `*.list` files), `list2json.py` (converts parsed runs to job commands), `jobrunner.py` (parallel job execution), `list2json.py`.
 - `script/cov/` — coverage tooling, standard library only: `covgen.py` (`scan` at build time under `FCOV=1`; `merge`/`report`/`codecov`/`analyze`/`export`/`env` after runs) over `covlib/` (model, filelist reader, covergroup-subset parser, generator, dump merge, UCIS-XML writer, lcov parser/renderer, reports; unit tests in `covlib/tests/`). Design and phases: `odve/doc/fcov-plan.md`.
 - `script/rand/rand_check.py` — lists every `$urandom`/`$random`/`$dist_*`/`randomize()` call outside `odve_rand_pkg` in the given files or directories (exit 1 if any; `// odve_rand: ok` waives a line). `script/rand/rand_trace_diff.py` — compares the `+ODVE_RAND_TRACE` draw traces of two runs and lists the first draw each stream differs at (value, or only time: a same-time-step race).
+- `script/index/` — the **code index** and its `odve-index` MCP server (`script/index/README.md`, design in `doc/index-plan.md`): Universal Ctags over every HDL file plus pyslang over each agent's `vrf/list/fl.f` (symbols, references, elaborated instance tree, class bases, `type_id::create` edges) in `<root>/.odve-index/index.db`; `setup.sh` once, `odve_index.py build`, then the MCP tools (`sym_def`, `sym_refs`, `sym_outline`, `hier_tree`, `tb_tree`, `fl_resolve`, ...) or `odve_index.py query <tool>`. A PostToolUse hook keeps it current after every edit.
 - `script/schedule/`, `script/pdf/pdf2req/` — scheduling and requirements-doc tooling (early/placeholder).
+- `svunit/svunit-3.38.1/` — vendored SVUnit for unit tests of SystemVerilog units outside a UVM testbench; `script/common/ut.mk` gives any `ut/` folder (`*_unit_test.sv` + `svunit.f`) a `make ut [VERILATOR=1]` target; `comp/common/cov/ut/` tests the coverage runtime this way.
 - `uvm/` — vendored UVM library sources: `uvm-1.1d` (default, per `common_sourceme`) and `1800.2-2020-2.0` (available, not default). Used instead of relying on a simulator-provided UVM.
 - `vip/` — placeholders for larger VIPs (`pcie`, `nvme`) mentioned in the README's roadmap; not yet implemented.
 
-### Per-agent structure (same shape in every `comp/agents/<protocol>/`, most complete in `apb`)
+### Per-agent structure (the scaffold's layout; `apb` is the complete reference)
 
-- `intf/` — SystemVerilog interface(s) (e.g. `odve_apb_if.sv`, plus a plain `apb_if.sv`).
-- `src/` — the UVM component sources: `<proto>_agent.sv`, `<proto>_agent_cfg.sv`, `<proto>_agent_pkg.sv` (aggregates `` `include ``s), `<proto>_driver_base.sv` + master/slave driver specializations, `<proto>_monitor.sv`.
-- `item/` — the sequence item class(es) (e.g. `ocdve_apb_seq_item.sv`).
-- `seq/` — reusable sequences built on the item (e.g. `odve_apb_read_seq.sv`, `odve_apb_write_seq.sv`) plus a `seq_lib_pkg.sv` aggregator.
-- `reg/` — register-layer artifacts (scaffolding only in most agents).
-- `list/` — compile filelists for the agent itself: `agent.f` (full agent incl. `+incdir`s), `item.f` (item package only), `seq.f`.
-- `vrf/` — the agent's own standalone verification environment used to test it in isolation:
-  - `dut/dut.sv` — a minimal example DUT.
-  - `tb/top.sv` — top module; sets the default UVM test via `uvm_config_db` and calls `run_test`.
-  - `tb/env/` — `env.sv` (top-level `uvm_env`), `cc.sv` (connectivity/config component), `scb.sv` (scoreboard), `env_pkg.sv`.
-  - `tb/tests/` — `base_test.sv` plus scenario tests (`read_test.sv`, `write_test.sv`, `simple_test.sv`), aggregated by `test_pkg.sv`.
-  - `list/fl_tb.f`, `fl_dut.f`, `fl_uvm.f` — separate filelists per compile step (TB, DUT, UVM), referenced by `common.mk`'s `FL_TB`/`FL_DUT`/`FL_UVM`.
-  - `work/` — the build/run/regress workspace: `common/` (shared Makefile+sourceme — edit here for shared settings), `run/`, `mini/` (thin variant wrappers), `rlist/*.list` (named regression run definitions).
+- `intf/` — the SystemVerilog interface (`odve_<proto>_if.sv`): signals as plain `logic` inside, `clk`/`rst_n` as ports; the DUT is wired to its members from `top`.
+- `src/item/` — the sequence item + `odve_<proto>_item_pkg.sv`. No `rand`/constraints: values come from `user_randomize()` (plain `$urandom`), reached through `` `odve_rand(item) ``.
+- `src/agent/` — `odve_<proto>_cfg.sv`, `odve_<proto>_sqr.sv`, `odve_<proto>_agent.sv`, `odve_<proto>_agent_pkg.sv`, with `mon/`, `mst/`, `slv/` for the monitor and the master/slave drivers. `cfg.role` selects master or slave; a slave is either autonomous (memory in its driver) or reactive (a slave sequencer with a request fifo and a responding sequence that owns the memory) — see `apb` (`+apb_slave=dut|mem|seq`). The agent package is also where the agent's **covergroup** lives (`` `ifdef ODVE_COV_NATIVE `` block at package scope, sampled by the monitor with `` `odve_cov_sample ``).
+- `seq/` — sequences on the item plus `odve_<proto>_seq_lib_pkg.sv`.
+- `list/` — compile filelists: `agent.f` (interface + item + agent packages, with `+incdir`s), `item.f`, `seq.f`.
+- `reg/` — register-layer artifacts (scaffolding only).
+- `vrf/` — the agent's own standalone verification environment:
+  - `dut/dut.sv` — a minimal DUT (for `apb`: an APB3 slave register file).
+  - `tb/top.sv` — clock/reset, the interface, the DUT, `odve_cov_final` under `ODVE_FCOV`, `uvm_config_db` of the `vif`, `run_test`.
+  - `tb/env/` — `env.sv` (agent + `cc` + `scb`), `scb.sv` (reference model / checks), `cc.sv`, `env_pkg.sv`.
+  - `tb/tests/` — `base_test.sv` (builds the env, `run_seq()` helper) plus scenario tests, aggregated by `test_pkg.sv`.
+  - `list/fl_tb.f`, `fl_dut.f`, `fl_uvm.f` — per compile step; `fl_tb.f` lists the coverage runtime **before** `-f list/agent.f` because the monitor names `odve_cov_pkg::`.
+  - `work/` — `common/` (shared Makefile + `Makefile.veri` + sourceme), `run/`, `mini/`, `rlist/*.list`.
 
 New source files must be added to the correct `list/*.f` (agent) or `vrf/list/fl_*.f` (TB) — compilation is filelist-driven, not directory-scanned.
 
-`apb` and `axi` currently disagree on structure/base classes (see the `vrf-new-agent` skill for the details and why `axi`'s plain-`uvm_*` pattern, not `apb`'s, is canonical going forward). When adding a **new** protocol agent, use the `vrf-new-agent` skill (`.claude/skills/vrf-new-agent/`), which scaffolds a working skeleton via `scripts/new_agent.sh <proto>` instead of hand-copying an existing agent.
+`apb` follows this layout and is the reference to copy patterns from. `axi` is a stub. When adding a **new** protocol agent, use the `vrf-new-agent` skill (`.claude/skills/vrf-new-agent/`), which scaffolds a working skeleton via `scripts/new_agent.sh <proto>` instead of hand-copying an existing agent.
 
 ### Compilation model
 
@@ -104,6 +106,28 @@ The UVM DPI library (`uvm_dpi.cc` → `build/uvm_dpi.o` → `uvm_dpi.dll`/`.so`,
 
 All of these are set by the relevant `sourceme` script — always `source sourceme` before running `make` in a `work/` directory.
 
+## Navigating the code: use the index, not the files
+
+Agents navigate SystemVerilog through the `odve-index` MCP (registered in
+`.mcp.json`; skills `sv-navigate` and `sv-raw-review`): `sym_def`/`sym_find`
+(where is X), `sym_refs` (who uses X), `sym_outline`/`sym_members` (what a
+file or class declares), `hier_tree`/`hier_instance` (the elaborated DUT/TB
+instance tree per unit), `tb_tree`/`class_info` (the UVM component tree as
+the code creates it), `fl_list`/`fl_resolve`/`fl_of_file` (what a filelist
+compiles), `file_deps`, `diag`, `code_at` (the lines around a location).
+Read a source file only at the lines a query points to, or when a tool
+answers with `error` (its `fallback` says what to do); never read `uvm/`
+sources for an API. After writing or editing `.sv/.svh/.f` files the
+PostToolUse hook re-indexes (Claude Code); other agents call
+`index_update(paths)`. An answer with `stale`/`dirty_units` means the index
+lags - update and retry. Without the MCP, the same tools are
+`odve/script/index/odve_index.py query <tool> key=value`. First time in a
+clone: `odve/script/index/setup.sh && odve/script/index/odve_index.py build`
+(Linux; needs Python >= 3.11 for pyslang, otherwise the tag layer only).
+On Python 3.12 `setup.sh` needs no network or pip: it installs from the
+portable bundle tracked at `script/index/bundle/` (built by `release.py`);
+`--online` fetches instead.
+
 ## Consumers
 
-Downstream repos (e.g. `amba-axi`) pull this repo in as a `odve` git submodule and build their own agent on top of `comp/common/` and `script/`. When changing shared scripts (`script/common/common.mk`, `script/source/common_sourceme`, `script/regress/*`), check for impact across all agents in `comp/agents/`, not just the one you're editing.
+Downstream repos (e.g. `amba-axi`, `pcie-vip`) pull this repo in as a `odve` git submodule and build their own agent on top of `comp/common/` and `script/`. They get the code index too: one `.odve-index/` at the consumer's root covers their agents and the submodule's (`script/index/README.md`, "Using it from a consumer repository": `.mcp.json`, the hook, the Codex entry). When changing shared scripts (`script/common/common.mk`, `script/source/common_sourceme`, `script/regress/*`), check for impact across all agents in `comp/agents/`, not just the one you're editing.

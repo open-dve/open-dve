@@ -109,8 +109,10 @@ function void svunit_testsuite::report();
   if ($test$plusargs("SVUNIT_LIST_TESTS"))
     return;
 
-  foreach(list_of_testcases[i])
-    list_of_testcases[i].report();
+  // odve: index renamed from i - Verilator 5.052 reports a duplicate
+  // 'unnamedblk1.i__Vloopsize' against the foreach in run() above.
+  foreach(list_of_testcases[tc])
+    list_of_testcases[tc].report();
 
   pass_cnt = get_num_passing_testcases();
 

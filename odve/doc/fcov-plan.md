@@ -476,9 +476,84 @@ the formerly always-on `-cover sbcefx3 -covercells` under a switch and adds
 with the licence error, visible through `-exer`; default gates unchanged.
 Left for later: illegal-hit counts in the store (today they are `UVM_ERROR`s
 in the logs only), a time-based checkpoint trigger, and the svunit tests.
+
+### Phase 4 — done (2026-09-28)
+
+The pilot needed real traffic, and apb had none: its `src/` was a dead
+draft. It is now a real agent in the scaffold's layout — APB3 interface,
+item with `user_randomize()`, master driver, monitor, sequencer, sequences
+(read / write / mixed, out-of-range addresses optional), an APB3 slave DUT
+(16 registers, a wait state every third transfer, `pslverr` out of range),
+an env with a scoreboard (register-file model) and three tests. The
+covergroup `odve_apb_cg` (direction, address incl. out-of-range, `pslverr`,
+direction transitions, direction × error cross) is declared **in the
+agent's package** and sampled by its monitor — coverage travels with the
+reusable component. `submit -cov`: 29/29 bins = 100 % on both simulators,
+attribution per test, `analyze --min` shows `read_test` adds no bin over
+`rw_test` + `write_test`. Found on the way: the repo's `` `odve_rand ``
+macro was defined with a space before its parameter list (a macro without
+parameters), unusable until now — fixed.
+
+Follow-up (same day): the agent got a **slave role** with two modes —
+autonomous (memory in the driver) and reactive (slave sequencer with a
+request fifo, memory in the responding sequence `odve_apb_slv_mem_seq`) —
+selectable per run with `+apb_slave=dut|mem|seq`; `submit` runs `rw_test`
+against all three slaves, 100 % on both simulators. One trap: a component
+named `req_fifo` under a `uvm_sequencer` collides with UVM 1.1d's own
+`m_req_fifo` instance name (`CLDEXT` fatal).
 Native mode (licensed tools compiling the blocks as covergroups) stays phase
 6: it needs generated wrappers with the covergroup's own arity, and the
 covergroup type is declared after `odve_cov_pkg` in compilation order.
+
+### Phase 6a — unit tests of the runtime, done (2026-09-28)
+
+The plan's phase-1 line item "svunit tests" needed a flow that did not
+exist. Now: `script/common/ut.mk` turns any `ut/` folder holding
+`*_unit_test.sv` and a `svunit.f` into `make ut` / `make ut VERILATOR=1`
+(runSVUnit from the vendored SVUnit; `common_sourceme` exports
+`SVUNIT_INSTALL` and puts its `bin` on `PATH`). `comp/common/cov/ut/` runs
+nine tests over `odve_cov_store` (count, saturation at `COVCNT=4`,
+out-of-range index → error and no write), `find_bin` (values, ranges,
+ignore before coverage rows, illegal, wildcard care masks, default),
+`find_trans` (a 3-deep history against two sequences), the dump (checkpoint
+alternation `.1`/`.0` with `# end <seq>`, the final file line by line, no
+files without `+odve_cov_dump`) and `init()`'s plusargs — 9/9 on both
+simulators. To build the runtime without a UVM library it reports through
+`` `ODVE_COV_ERR``/`` `ODVE_COV_WARN`` (`uvm_error`/`uvm_warning`, or
+`$display` under `+define+ODVE_COV_NO_UVM`) and counts errors in
+`odve_cov_pkg::odve_cov_errors`, which is what the tests assert on.
+Found on the way: the vendored svunit scripts were not executable; plain
+`vsim -c` fails with `Licensing failure` on ModelSim Starter here (the
+agents already use `-batch` for that reason — `ut.mk` does too); Verilator
+5.052 rejects two `foreach (x[i])` loops in different out-of-class methods
+of `svunit_testsuite` (`Duplicate declaration of VARSCOPE ...
+i__Vloopsize`) — one loop index renamed, marked `// odve:`.
+
+### Phase 6b — emulation backend, done (2026-09-28)
+
+`comp/common/cov/odve_cov_emu.sv`: the store's flat bin layout as
+synthesizable logic — N saturating W-bit counters, a sample port (one index
+per cycle), APB3 readback: counters at `4*i`, `NSAMPLES`/`N`/`W`/`CTRL` at
+`0xFFF0..0xFFFC` (top of a 64 KiB window, so N can grow without moving
+them; `CTRL` bit0 freeze, bit1 clear), `pslverr` elsewhere, writes to
+counters ignored, no wait states. Host software on an emulator reads it
+into the same `cov.dump` format; `covgen.py` needs no change (`# backend
+emu` in the header is just another key). In simulation the apb TB puts the
+block on the bus as a fourth slave (`+apb_slave=cov`), `odve_cov_emu_feed`
+mirrors every `hit()` of the package store onto the sample port, and
+`odve_apb_cov_emu_seq` — the readback as host software would do it —
+compares every counter and `NSAMPLES` with the store and writes the run's
+dump from the hardware; `cov_emu_test` is in `submit`, 200 samples / 29
+bins / 0 mismatches on both simulators, and the merged coverage stays at
+100 %. Found on the way: a sample hits several bins (five in apb), so the
+one-per-clock port lags the traffic and the readback must poll the feed
+queue empty before freezing — a fixed number of "drain" reads lost 116 of
+200 samples. In an emulation build the feed is absent and synthesizable
+monitors drive the port; that mapping (monitor → bin index tables) is not
+built here.
+
+Left in phase 6: native mode (c), to be scoped when a licensed simulator is
+at hand.
 
 ## 9. Portability and offline release
 
