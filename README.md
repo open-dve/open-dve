@@ -1,2 +1,95 @@
 # open-dve
-Open Design Verification Enviroument
+Open Design Verification Environment
+
+Project give possibility to unify TB building/running/result gathering. 
+- Scripting : 
+    - Compilation flow to touch only updated files
+    - Recompilation flow
+    - Run simulation without recompilation and wide configurable scripting
+    - Run many TCs without recompilation 
+    - Run few compilation in parallel 
+    - Run regression throw regression lists
+    - Make a structure of regression running lists
+    - Running on Jenkins 
+    - Running by optimal schedule
+- Source :
+    - APB agent
+    - AHB agent
+    - AXI agent
+    - PCIe VIP
+    - NVME VIP
+    - MPHY VIP 
+    - UNIPRO VIP
+    - UFS VIP
+- Randomization :
+    - odve_rand (comp/common/rand): the same values for the same seed on every simulator
+    - use DPI to call constraint solver from Google Lib 
+- Coverage :    
+    - Generate DUT coverage (line,cond,tgl,fsm,branch) 
+    - Avoid to use Func Covergoups and use instead of this DUT coverage to mimic bins,coverpoint,covergroups simple behavior.
+- Log :
+    - make a standard for LOG message generation to have possibility recollect statistics of errors and reuse it to predict or give a help understand the error reason
+
+
+To run TB with Questa: 
+- install gnu make 
+- install python3
+- install bash for git
+- install tool readlink
+
+Each `make run` is capped at `TIMEOUT` minutes (default 180) so a hung test
+cannot stall a regression - `make run TIMEOUT=30`, or `TIMEOUT=0` for no cap.
+`make run GUI=1` hands the session to an interactive vsim instead: no cap, no
+batch mode. A run killed on the clock says so at the end of its `run.log`, and
+the regression runner reports it as the failure reason (`./regress.py <list>
+-exer` prints the error of every failed test with the command to reproduce it).
+See `odve/script/README` for what each shared Make include does.
+
+To run TB with Verilator
+
+## Recommended: containerised Verilator (docker or podman)
+
+No Verilator/gcc/flex/bison install needed - only a container engine.
+Works on WSL, native Linux, macOS and Git Bash on Windows.
+
+1. Download the Verilator image once:
+   ```bash
+   cd odve/script/verilator-docker
+   ./setup.sh
+   ```
+   It reports the detected OS and container engine, prints install
+   instructions if neither docker nor podman is present (`--install-engine`
+   installs podman for you on Linux/WSL), then pulls the image.
+
+2. Build and run:
+   ```bash
+   cd odve/comp/agents/apb/vrf/work/run
+   source sourceme
+   make clean all run VERILATOR=1
+   ```
+
+Offline machines (e.g. CAD hosts without internet) - on a connected
+machine run `docker save verilator/verilator:latest | gzip > verilator-image.tar.gz`,
+copy the file over, then `./setup.sh --load verilator-image.tar.gz`.
+
+See `odve/script/verilator-docker/README.md` for all options and
+environment variables.
+
+## Alternative: native Verilator install
+(https://veripool.org/guide/latest/install.html#installation)
+- Windows:
+    - https://cygwin.com/install.html (follow description to install all packages)
+    - install cygwin (please install cygwin to C:/cygwin64 - in this case common_sourceme add it to path)
+    - install make 
+    - install python3 
+    - install gcc-g++ (should be 10 and more version)
+    - install flex
+    - install bison
+    - install autconf 
+    
+    - Make sure that you provide VERILATOR_ROOT, 
+    - Make sure that you added it to PATH
+    - call `make clean all run VERI=1`
+
+  Setting `VERILATOR_ROOT` before `source sourceme` bypasses the container
+  wrapper and uses your native install instead.

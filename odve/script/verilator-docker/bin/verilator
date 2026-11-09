@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# Container-backed Verilator, used as $(VERILATOR_ROOT)/bin/verilator by
+# vrf/work/common/Makefile.veri when no native Verilator install is on PATH.
+#
+# Mounts the repo root (derived from $ODVE, which every odve sourceme
+# script exports) at the identical path inside the container, so absolute
+# paths already used by this framework's filelists resolve unchanged, and
+# forwards ODVE/ODVE_UVM so the ${ODVE}-style expansion inside .f files
+# still works when verilator itself parses them.
+#
+# Run script/verilator-docker/setup.sh once first to fetch the image.
+set -euo pipefail
+
+VERILATOR_DOCKER_IMAGE="${VERILATOR_DOCKER_IMAGE:-verilator/verilator:latest}"
+
+if [ -z "${ODVE:-}" ]; then
+    echo "verilator (container wrapper): \$ODVE is not set - source sourceme first" >&2
+    exit 1
+fi
+
+# docker unless told otherwise; podman and apptainer are drop-in alternatives.
+ENGINE="${ODVE_CONTAINER_ENGINE:-}"
+if [ -z "$ENGINE" ]; then
+    for e in docker podman apptainer singularity; do
+        if command -v "$e" >/dev/null 2>&1; then ENGINE="$e"; break; fi
+    done
+fi
+if [ -z "$ENGINE" ]; then
+    echo "verilator (container wrapper): no docker, podman, or apptainer on PATH." >&2
+    echo "  run ${ODVE}/script/verilator-docker/setup.sh for install instructions" >&2
+    exit 1
+fi
+
+REPO_ROOT="$(cd "$ODVE/.." && pwd)"
+
+# Apptainer has no daemon and no `run`/`save`/`load` image store: setup.sh
+# builds a single .sif file from the same image reference, named the same
+# way here, and Apptainer runs as the invoking user already (no uid/gid
+# mapping needed, unlike docker/podman below).
+case "$(basename "$ENGINE")" in
+    apptainer|singularity)
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+        SIF_FILE="${ODVE_APPTAINER_SIF:-$SCRIPT_DIR/$(printf '%s' "$VERILATOR_DOCKER_IMAGE" | tr '/:' '__').sif}"
+        if [ ! -f "$SIF_FILE" ]; then
+            echo "verilator (container wrapper): $SIF_FILE not found - run setup.sh first" >&2
+            exit 1
+        fi
+        exec "$ENGINE" run \
+            --bind "$REPO_ROOT:$REPO_ROOT" \
+            --pwd "$(pwd)" \
+            --env "ODVE=$ODVE" \
+            --env "ODVE_UVM=$ODVE_UVM" \
+            "$SIF_FILE" \
+            "$@"
+        ;;
+esac
+
+# Rootless podman already maps the calling user onto the container user via
+# keep-id; docker needs to be told explicitly or it writes root-owned output.
+ID_OPTS=(-u "$(id -u):$(id -g)")
+if [ "$(basename "$ENGINE")" = "podman" ]; then
+    ID_OPTS=(--userns=keep-id)
+fi
+
+exec "$ENGINE" run --rm \
+    "${ID_OPTS[@]}" \
+    -e ODVE \
+    -e ODVE_UVM \
+    -v "$REPO_ROOT:$REPO_ROOT" \
+    -w "$(pwd)" \
+    "$VERILATOR_DOCKER_IMAGE" \
+    "$@"

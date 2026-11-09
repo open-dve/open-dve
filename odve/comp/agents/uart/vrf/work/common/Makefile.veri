@@ -1,0 +1,44 @@
+.PHONY: all run clean version lint
+
+VRF ?=$(PROJ)/vrf
+
+# Shared run settings (TIMEOUT, GUI) - the same file common.mk includes.
+include ${ODVE}/script/common/run.mk
+
+BIN=Vtop
+NPROC=4
+MODE ?= --binary
+BUILD_OPTS = \
+	--timescale 1ns/1ps \
+	--cc \
+	$(MODE) \
+	--timing \
+	-O3 \
+	-j $(NPROC) \
+	-o $(BIN)
+
+clean:
+	rm -rf obj_dir
+
+all:
+	$(VERILATOR_ROOT)/bin/verilator $(BUILD_OPTS) -F $(VRF)/list/fl.f
+
+LINT_OPTS = \
+	--lint-only \
+	--timescale 1ns/1ps \
+	--timing
+
+# Parse and elaborate only, no C++ - seconds instead of minutes. Full output
+# in lint.log; terminal gets %Error blocks + counts.
+lint:
+	@$(VERILATOR_ROOT)/bin/verilator $(LINT_OPTS) -F $(VRF)/list/fl.f > lint.log 2>&1; rc=$$?; \
+		grep -E -A3 '^%Error' lint.log; \
+		echo "lint: $$(grep '^%Error' lint.log | grep -vc 'Exiting due to') error(s), $$(grep -c '^%Warning' lint.log) warning(s) - full output in lint.log"; \
+		exit $$rc
+	
+run:
+	@echo "run: $(if $(TIMEOUT_CMD),time limit $(strip $(TIMEOUT)) min,$(TIMEOUT_NOTE)); $(SEED_NOTE)"
+	$(TIMEOUT_CMD) ./obj_dir/$(BIN) $(RUN_OPTS) +verilator+seed+$(SEED) $(SEED_PLUSARG); $(CHECK_TIMEOUT_NOLOG)
+
+version:
+	$(VERILATOR_ROOT)/bin/verilator --version

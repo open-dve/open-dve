@@ -1,0 +1,3 @@
+#!/bin/bash
+export ODVE=$(readlink -f "../../../../")
+source $ODVE/script/source/common_sourceme

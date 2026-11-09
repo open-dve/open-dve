@@ -1,1 +1,36 @@
 .vscode/launch.json
+odve/script/regress/__pycache__/*
+# written by script/verilator-docker/setup.sh --native; machine-specific paths
+odve/script/verilator-docker/native.env
+# unpacked by setup.sh --portable; the .tar.xz next to it is the tracked artefact
+odve/script/verilator-docker/prebuilt/*/
+odve/comp/agents/*/vrf/work/*/*__run/*
+odve/comp/agents/*/vrf/work/*/build/*
+odve/comp/agents/*/vrf/work/*/obj_dir/*
+# regress.py names RUN_DIR after the list entry, not <TESTNAME>__run
+odve/comp/agents/*/vrf/work/*/*/run.log
+# `make lint VERILATOR=1` keeps the full verilator --lint-only output here
+odve/comp/agents/*/vrf/work/*/lint.log
+odve/comp/agents/*/vrf/work/*/modelsim.ini
+odve/comp/agents/*/vrf/work/*/transcript
+# copied into each run dir by `prerun` (Questa): regress.py names the dir after the list entry
+odve/comp/agents/*/vrf/work/*/*/modelsim.ini
+odve/comp/agents/*/vrf/work/*/*/uvm_dpi.*
+odve/comp/agents/*/vrf/work/*/*/transcript
+# functional-coverage dumps written per run (FCOV=1); merged reports live in work/<variant>/cov/
+odve/comp/agents/*/vrf/work/*/*/cov.dump*
+odve/comp/agents/*/vrf/work/*/cov/
+# python bytecode, anywhere
+__pycache__/
+*.pyc
+# simulator code-coverage output per run (CCOV=1)
+odve/comp/agents/*/vrf/work/*/*/coverage.dat
+odve/comp/agents/*/vrf/work/*/*/cov.ucdb
+# written by comp/common/rand/test/run_test.sh (default -o)
+odve_rand_test/
+
+# svunit work dirs of `make ut` (script/common/ut.mk)
+**/ut/work_modelsim/
+**/ut/work_verilator/
+**/ut/*.dump*
+.odve-index/

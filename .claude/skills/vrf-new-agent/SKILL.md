@@ -1,0 +1,44 @@
+---
+name: vrf-new-agent
+description: Scaffold a brand-new UVM verification agent (protocol block) under odve/comp/agents/ so it follows the framework's standard folder structure, file/class naming convention, and Makefile targets (make atb/adut/auvm/elab/all/run). Use this whenever the user asks to add, create, start, or bootstrap a new agent/block/VIP for a protocol (e.g. "add an ahb agent", "start the jtag agent", "create a new agent for spi") — do not hand-build the directory tree from scratch or copy an existing agent wholesale; apb is the complete reference of the layout this script produces.
+---
+
+# Scaffolding a new odve agent
+
+Every agent in `odve/comp/agents/` follows one layout — the one this script generates. `apb` is the complete reference of it (plain `uvm_*` base classes, `src/item/` + `src/agent/{mon,mst,slv}` + `seq/`, a DUT, env with scoreboard, tests, the agent's covergroup in its package).
+
+## Use the scaffold script, don't hand-build the tree
+
+```bash
+cd <path to open-dve repo root>          # the dir containing odve/comp/agents
+.claude/skills/vrf-new-agent/scripts/new_agent.sh <proto>
+```
+
+`<proto>` is the lowercase protocol name (`spi`, `jtag`, `uart2`, ...) and becomes the directory name under `odve/comp/agents/<proto>/`. The script is idempotent-safe (refuses to run if the target directory already exists) and generates the **complete, working skeleton**:
+
+- `intf/odve_<proto>_if.sv` — interface stub (clk/rst_n only; protocol signals are a TODO).
+- `src/item/odve_<proto>_item.sv` + `odve_<proto>_item_pkg.sv`.
+- `src/agent/odve_<proto>_cfg.sv`, `odve_<proto>_sqr.sv`, `odve_<proto>_agent.sv`, `odve_<proto>_agent_pkg.sv`, plus `mon/odve_<proto>_mon.sv`, `mst/odve_<proto>_mst_drv_base.sv`, `slv/odve_<proto>_slv_drv.sv` — all extending plain `uvm_*` base classes, wired together (agent creates/connects sqr+drv+mon, gets `cfg` via `uvm_config_db`) so it's a real, buildable starting point, not just empty files.
+- `list/agent.f`, `item.f`, `seq.f` — compile filelists already pointing at the generated files.
+- `vrf/dut/dut.sv`, `vrf/list/fl_{tb,dut,uvm}.f`, `vrf/tb/{top.sv,env/*,tests/*}` — a working standalone TB (env with `cc`/`scb` placeholders, `base_test`/`simple_test`) modeled on `axi`'s clean version (with `axi`'s one bug — `endclass : envi` instead of `endclass : env` — fixed).
+- `vrf/work/{common,run,mini,check}/{Makefile,sourceme,regress.py}` and `vrf/work/rlist/{mini,check,submit}.list` — the standard build/run/regress workspace for **both simulators**: `work/common/Makefile` (Questa, includes `common.mk`), `work/common/Makefile.veri` (a copy of apb's, generic) and `vrf/list/fl.f` for Verilator, variant Makefiles with the `VERILATOR=1` switch; `sourceme` exports `ODVE`, `PROJ` and `ODVE_<PROTO>` with the same `readlink -f "../../../../../../"` depth as `apb`'s (correct because the new agent sits at the same directory depth).
+- **Functional coverage wired in**: the agent package carries a covergroup skeleton (`odve_<proto>_cg`, one `coverpoint kind` to replace) inside an `` `ifdef ODVE_COV_NATIVE `` block, the monitor has `` `odve_cov_create(odve_<proto>_cg) `` and a commented `` `odve_cov_sample `` at the sampling site, `fl_tb.f` lists the coverage runtime before `agent.f`, `top.sv` instantiates `odve_cov_final` under `ODVE_FCOV`. `make ... FCOV=1` / `./regress.py <list> -cov` work on the skeleton as generated (0 bins hit until the monitor samples).
+
+This determinism matters: the trickiest thing to get right by hand is the `sourceme` relative-path depth (`ODVE=$(readlink -f "../../../../../../")`), which silently points at the wrong directory if any nesting level is off. The script gets it right every time because the generated tree is always the same depth.
+
+## After scaffolding
+
+1. Fill in the interface (`intf/odve_<proto>_if.sv`) with the protocol's real signals.
+2. Fill in the item (`src/item/odve_<proto>_item.sv`) with real transaction fields.
+3. Implement the driver/monitor logic marked `// TODO`.
+4. Any new `.sv` file must be added to the relevant `list/*.f` or `vrf/list/fl_*.f` — compilation in this framework is filelist-driven, not directory-scanned, so a file that exists on disk but isn't listed is silently never compiled.
+5. Fill in the covergroup in `src/agent/odve_<proto>_agent_pkg.sv` (keep to the supported subset, `comp/common/README`) and uncomment the `` `odve_cov_sample `` in the monitor once it builds real transactions.
+6. Use the **vrf-workflow** skill to compile and run on both simulators (`cd odve/comp/agents/<proto>/vrf/work/run && source sourceme && make aclean all run` / `... VERILATOR=1`), and again before committing/pushing (`./regress.py submit` on both, `-cov` for the coverage report).
+
+## Naming convention reference (for manual edits too, not just scaffolding)
+
+- Files and classes: `odve_<proto>_<role>.sv` containing `class odve_<proto>_<role>`. Package files: `odve_<proto>_<group>_pkg.sv` containing `package odve_<proto>_<group>_pkg` (spelled out fully — don't abbreviate to typos like `agant`, and don't use the `ocdve_` prefix apb has).
+- Directory roles mirror `axi`: `intf/` (interface), `src/item/` (sequence item + its pkg), `src/agent/` (cfg, sqr, agent, agent_pkg) with `mon/`, `mst/`, `slv/` subfolders for monitor/master-driver/slave-driver, `seq/` (sequences, once they exist), `list/` (agent-only filelists), `vrf/` (standalone TB: `dut/`, `list/`, `tb/{env,tests}`, `work/{common,run,mini,check}` + `rlist/*.list`).
+- Make targets are consistent across every agent because every `work/<variant>/Makefile` just `include`s `work/common/Makefile`, which `include`s the single shared `${ODVE}/script/common/common.mk`. Never redefine `atb`/`adut`/`auvm`/`elab`/`all`/`run` per agent — override variables (`FL_TB`, `TESTNAME`, etc.) in `work/common/Makefile` instead. See the `vrf-workflow` skill for what each target does.
+
+After scaffolding, tell the code index about the new agent so its unit (`vrf/list/fl.f`) is discovered and elaborated: `odve/script/index/odve_index.py build` (or the MCP `index_rebuild`) — see the `sv-navigate` skill.

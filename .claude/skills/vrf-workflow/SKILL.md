@@ -1,0 +1,150 @@
+---
+name: vrf-workflow
+description: Compile and simulate UVM/SystemVerilog agent code with BOTH Questa/ModelSim and Verilator after editing files under odve/comp/agents/*/src, intf, item, seq, or vrf, and gate git commit/push on both. Use this proactively any time you modify, add, or remove a .sv file under odve/comp/agents/ (agent sources, interfaces, sequences, testbench env/tests, DUT) to confirm the change still compiles and the relevant test(s) still pass — do not report SystemVerilog edits as done without running this. ALWAYS use this before running `git commit` (analyze + compile must be clean on both simulators) or `git push` (submit regression must be clean on both simulators) on SystemVerilog changes in this repo. Also use when the user asks to "compile", "run a test", "check compilation", "run regression", or "run submit/check/mini" for an agent. Also applies if editing shared framework code under odve/script or odve/comp/common — re-run this for at least one agent (e.g. apb) to confirm the shared change didn't break the build.
+---
+
+# VRF compile / run / regress workflow
+
+This repo's verification agents are UVM environments where **compilation is filelist-driven, not directory-scanned**. Editing or adding a `.sv` file is not enough by itself — you must also (a) make sure it's referenced by the right filelist if it's new, and (b) actually run the build to know whether it compiles. `make lint` (Questa: analyze only; `VERILATOR=1`: `verilator --lint-only`) is the fast first check, but it stops short of elaboration/C++ — only a real compile proves the change builds.
+
+**Two simulators are supported and both must be checked.** Questa/ModelSim is the primary simulator; Verilator runs the same filelists via `VERILATOR=1`. They disagree often — Verilator is stricter (it has already caught real bugs Questa accepted, e.g. interface ports with no direction, and missing `+incdir+` for a package's own includes), while Questa supports constructs Verilator does not. **A change that compiles on one can fail on the other, so passing one is not evidence about the other.**
+
+## 0. Find the right agent and work folder
+
+Each agent lives at `odve/comp/agents/<agent>/` (`apb` is the most complete and currently the only one with a full `vrf/` UVM environment — check before assuming another agent like `ahb`/`jtag`/`spi`/`uart` has one). Its standalone verification environment is `odve/comp/agents/<agent>/vrf/`, and the build/run/regress workspace is `odve/comp/agents/<agent>/vrf/work/<variant>/`, where `<variant>` is one of:
+
+- `run/` — everyday compile + simulate loop while iterating on code.
+- `check/` or `submit/` — full regression, run before pushing.
+- `mini/` — a smaller/faster regression subset.
+- `common/` — not run directly; holds the shared `Makefile`/`Makefile.veri`/`sourceme` the other variants include.
+
+If a change is only in `odve/script/` or `odve/comp/common/` (shared framework code, not agent-specific), still run this workflow for at least one agent afterward — those files are `include`d by every agent's build.
+
+### Does this agent support Verilator?
+
+Verilator support is per-agent, not automatic. An agent has it only if **both** exist:
+
+- `vrf/work/common/Makefile.veri` — the Verilator build rules, and
+- `vrf/list/fl.f` — the single flattened filelist Verilator consumes (Questa uses the separate `fl_uvm.f`/`fl_dut.f`/`fl_tb.f`).
+
+Today that's `apb` (full UVM) and `uart` (non-UVM). If an agent lacks them, say so plainly rather than reporting a Verilator pass that never ran — and don't hand-roll a one-off `verilator` invocation as a substitute, since it won't match what the Makefile does.
+
+## 1. Source the environment (once per shell)
+
+```bash
+cd odve/comp/agents/<agent>/vrf/work/<variant>
+source sourceme
+```
+
+Exports `ODVE`, `ODVE_<AGENT>`, `PROJ`, and pulls in `odve/script/source/common_sourceme` (sets `ODVE_UVM`, locates `MS_HOME` from `vsim` on `PATH`, and points `VERILATOR_ROOT` at the containerised Verilator in `odve/script/verilator-docker/`).
+
+**Verilator prerequisite:** one of three installs, all managed by `odve/script/verilator-docker/setup.sh` (`--check` reports which is active): the container image (docker/podman/apptainer), `--native` (conda-forge under `$HOME`, no root), or `--portable` (the tarball vendored in `prebuilt/`, no root, no network). A native/portable install writes `native.env`, which `sourceme` picks up automatically. If `make ... VERILATOR=1` complains, run `setup.sh --check` first and follow what it says.
+
+**Questa prerequisite:** `vsim` on `PATH`. If it isn't, say Questa isn't available rather than guessing at results.
+
+### Know which simulators actually work *in this environment* before promising both
+
+Check, don't assume — and report per-simulator rather than collapsing to one verdict:
+
+- **WSL:** Verilator works. Questa often does **not**, even when `vsim` resolves: a Windows ModelSim binary cannot read WSL paths, and the build dies with `Failed to open -f file "/mnt/c/..."`. Questa needs Windows-native `C:/...` paths, i.e. run it from **Git Bash on Windows**, not WSL.
+- **Git Bash on Windows:** Questa works. Verilator works if Docker Desktop is running.
+- **Native Linux:** Verilator works; Questa works if a Linux ModelSim/Questa is installed (`vsim` on `PATH`) — the DPI step then uses ModelSim's bundled `gcc-*-linux` automatically.
+
+If you can only run one simulator, run it, then **explicitly state that the other was not verified and why**. Never imply both passed when only one ran.
+
+## 2. Compile
+
+**Questa:**
+```bash
+make all
+```
+Runs `prework preuvm auvm uvm_dpi predut adut pretb atb elib` — compiles UVM, DUT and TB into separate Questa libraries (`vlog`), builds the UVM DPI shared lib (`uvm_dpi`: `build/uvm_dpi.o` then `.dll`/`.so`, with ModelSim's bundled 32-bit gcc — branch picked by `HOST_OS`, see `common.mk`), and maps the libraries into `default__run/` (`elib`). It does **not** elaborate — `vsim` does that at `make run`, so only `make all run TESTNAME=<t>` proves a Questa change. **Read the actual output**; each `vlog` step prints `Errors: N, Warnings: M` and any nonzero error count is a real failure, and a failed `g++` in the `uvm_dpi` step is a failure too.
+
+`make lint` runs just the analyze steps for all three layers (`LINT_CMD` in `common.mk`: `ALL_CMD` minus `uvm_dpi` and `elib`) — the Questa counterpart of the Verilator lint below, and the quickest first check after an edit. `auvm`/`adut`/`atb` are those **analyze** steps (`vlog`) for the UVM, DUT and TB layers, runnable individually if you only touched one layer (e.g. `make atb` after a testbench-only edit). Elaboration happens inside `vsim` at `make run` (the `elab`/`vopt` target in `common.mk` is unused). A file can analyze cleanly yet fail to elaborate (e.g. a missing cross-package class reference), so don't treat "analyze passed" as "compilation is ok" — run a test.
+
+**Verilator — lint first, then build:**
+```bash
+make lint VERILATOR=1       # seconds: parse + elaborate only, no C++
+make all VERILATOR=1        # minutes: the real build (VERI=1 is an equivalent legacy spelling)
+```
+`make lint` is `verilator --lint-only` over the same `fl.f` and the same warning policy as `all`, so it is exactly the front half of the build: a typo, an undeclared identifier, a missing `+incdir+`, a width or port mismatch all surface here in a few seconds. The terminal prints each `%Error` block and a `lint: N error(s), M warning(s)` line; the full output is in `work/<variant>/lint.log`. **Loop on lint until it reports 0 errors before spending minutes on `make all`** — but a clean lint is not a passing build (nothing is compiled or run), so it never replaces the steps below.
+
+`make all VERILATOR=1` is one step: elaborates and compiles the generated C++ into `obj_dir/Vtop`. It is slower than Questa (several minutes — it compiles all of UVM through g++), so expect the wait and don't kill it early. Warnings are non-fatal by design (`-Wno-fatal`), because the vendored UVM 1.1d and the existing TB trip width/pin warnings that are not worth failing on — so **read the output for `%Error:` lines specifically**; a nonzero exit is the reliable signal.
+
+If you added or removed a source file (not just edited one), check it's in the right filelist or it silently won't compile:
+- Agent-side (`src/`, `item/`, `seq/`, `intf/`) → `odve/comp/agents/<agent>/list/*.f`.
+- Testbench-side (`vrf/tb/`, `vrf/dut/`) → `vrf/list/fl_tb.f` / `fl_dut.f`.
+- **And for Verilator:** confirm `vrf/list/fl.f` still pulls in the filelist you changed — it's a separate entry point, so a file added only to `fl_tb.f` is picked up by both, but a restructure of the `fl_*.f` files can silently drop Verilator coverage.
+
+After interface changes or shared-framework edits (`script/common/common.mk`, `comp/common/`), rebuild clean rather than incrementally:
+
+```bash
+make aclean all              # Questa
+make aclean all VERILATOR=1  # Verilator
+```
+
+## 3. Run a specific test
+
+```bash
+make TESTNAME=<test_name> run                # Questa
+make TESTNAME=<test_name> run VERILATOR=1    # Verilator
+```
+
+`<test_name>` is a UVM test class from `vrf/tb/tests/` (default under Questa is `base_test`). Both paths pass `+UVM_TESTNAME=<name>` and write `run.log` into a per-test run directory (`<TESTNAME>__run/`, or `RUN_DIR` if set).
+
+**Every run is capped at `TIMEOUT` minutes (default 180)** on both simulator paths (`script/common/run.mk`), so a hung test cannot stall you or a regression: `make run TIMEOUT=30` for a tighter cap, `TIMEOUT=0` for none, `GUI=1` for an interactive vsim with no cap. A run killed on the clock exits 124 and its `run.log` ends with `*** ODVE_TIMEOUT: killed after N min ...` — frequently the *only* line in it, since a kill during startup leaves the log empty. Treat that as a failure and report the timeout, not "the log is empty"; if the test legitimately needs longer, raise `TIMEOUT` rather than removing the cap.
+
+**Check the UVM report summary in the log** (`UVM_ERROR :` / `UVM_FATAL :` near the end) — a test can exit 0 at the tool level and still have failed inside UVM. The Verilator `run` target additionally greps the log and fails the make target on nonzero `UVM_ERROR`/`UVM_FATAL`, but confirm the numbers yourself rather than trusting exit code alone.
+
+**Watch for the silent-wrong-test trap.** With no `TESTNAME`, the Verilator path runs whatever `top.sv`'s `run_test()` call hardcodes rather than a named test. So a run can look green while exercising something other than what you asked for. Confirm the log's `Running test <name>...` line matches the test you intended — if you passed a `TESTNAME` and the log names a different test, treat it as a failure, not a pass.
+
+Combine compile + run while iterating:
+
+```bash
+make aclean all run TESTNAME=<test_name>                # Questa
+make aclean all run TESTNAME=<test_name> VERILATOR=1    # Verilator
+```
+
+## 4. Run the full regression before pushing — on both simulators
+
+Every `work/<variant>` folder has its own `regress.py`/`sourceme`; the list name is just an argument:
+
+```bash
+cd odve/comp/agents/<agent>/vrf/work/run
+source sourceme
+
+./regress.py submit                        # Questa
+./regress.py submit -ropts="VERILATOR=1"   # Verilator, same list
+```
+
+`-ropts` appends make variables to **both** the compile job and every run job, so the list is built and run with the same simulator. (Omitting it from the compile would build with Questa and run with Verilator.) Anything else make accepts works too, e.g. `-ropts="VERILATOR=1 NPROC=8"`.
+
+`regress.py <name>` reads `work/rlist/<name>.list` (each line names a run with its own `TESTNAME`/`COMP_DIR`/`RUN_OPTS` overrides) and drives `odve/script/regress/regress.py`, running jobs in parallel (default 4, `-max_jobs`/`-j` to change). `submit` is the pre-push list; confirm which list the user means if unclear, and check `work/rlist/` before inventing a name. `-no_comp` reuses an existing build — useful when iterating, but never for the final pre-push run.
+
+Every run draws a random seed unless `-ropts="SEED=<n>"` pins one; it is on each status line as `seed=<n>`, and a failure is re-run under the same seed with the `Repro:` command `-exer` prints — quote the seed with any failure you report. As each run finishes it prints a `[k/N] <name>: PASS|FAIL (<secs>) <reason> seed=<n>` line, the last `UVM_ERROR`/`UVM_FATAL` message if any, the path to its `run.log`, and the log itself (`-quiet` suppresses the log, `-tail N` trims it); a summary table follows once all runs are done. The verdict is taken from that run's own `run.log`: make must exit 0, the UVM report summary must exist (missing = the simulation never finished = FAIL), and `UVM_ERROR`/`UVM_FATAL` must both be 0. Every run gets `RUN_OPTS+=+UVM_MAX_QUIT_COUNT=1` so a simulation stops at its first UVM error; to let it run to the end (e.g. to see all mismatches at once) pass your own value and the default is not added — `-ropts="RUN_OPTS+=+UVM_MAX_QUIT_COUNT=0"` — and any other UVM plusarg goes the same way, `-ropts="RUN_OPTS+=+UVM_VERBOSITY=UVM_HIGH"` (combine with the simulator switch as `-ropts="VERILATOR=1 RUN_OPTS+=..."`). Agent Makefiles add their own run switches with `override RUN_OPTS += ...` so a command-line `RUN_OPTS` doesn't discard them. Add `-exer` to get, after the summary, a block per failed run with its `TestName`, `ErrorMsg` (the `ODVE_TIMEOUT` marker, else the last `UVM_ERROR`/`UVM_FATAL` message, else the last `** Error`/`%Error` line), the exact `Cmd` to reproduce it and the path to its log — quote that block when reporting failures instead of paraphrasing. Read the per-run status lines and the summary table, not just the exit code, and confirm every job in the list actually ran.
+
+Regression output lands in `RUN_DIR` named after the list entry (e.g. `apb_read/`), not `<TESTNAME>__run/`.
+
+**Functional coverage** is opt-in: `./regress.py <list> -cov` builds and runs with `FCOV=1` (the `acov` step generates the coverage classes from the covergroups in the sources, every run writes `cov.dump` next to `run.log`), then merges and reports into `work/<variant>/cov/` and prints `functional cov: NN% (x/y bins) -> .../cov/index.html` — quote that line, and `cov/cov.txt` for the detail (per-point percentages, `--` marks uncovered bins, the tests that hit each bin; `covgen.py analyze cov/cov.db.json --holes` lists the holes). `-ccov` adds the simulator's code coverage: on Verilator it lands in `cov/code/`; on ModelSim Starter the runs fail with `not licensed for Code Coverage` — expected, say so, don't work around it. `make cov [CCOV=1]` reports over whatever run dirs are in the work dir. A `[ODVE_COV] warning: ... skipped` line from `acov` or a `UVM_WARNING [ODVE_COV] ... no coverage collected` in a log means a covergroup was outside the supported subset (`odve/doc/fcov-plan.md` §4.1): the build is fine, but that group's coverage is absent — say so rather than reporting the percentage as complete. If you edit a covergroup or anything under `comp/common/cov/`, `script/cov/` or `cov.mk`, run apb with `FCOV=1` on **both** simulators and the unit tests: the Python ones (`cd odve/script/cov && python3 -m unittest discover -s . -p "test_*.py"`) and the SVUnit ones of the runtime (`cd odve/comp/common/cov/ut && source sourceme && make ut && make ut VERILATOR=1` — pass = `ut: PASSED (<sim>)`, details in `work_<sim>/ut.log`). apb's `submit` also carries `apb_cov_emu` (`cov_emu_test`, `+apb_slave=cov`): with `-cov` it reads the coverage emulation block back over APB and fails on any counter that differs from the store, so a change to `hit()`, the dump or `odve_cov_emu.sv` shows up there on both simulators.
+
+If you changed `odve/script/regress/` itself (`regress.py`, `readlist.py`, `list2json.py`, `jobrunner.py`), exercise it against a real list (e.g. `apb`'s `submit`) **under both simulators**, since `-ropts` and the command construction affect both.
+
+## 5. Gate on git commit and push
+
+A hard sequence, not a suggestion — SystemVerilog breaks silently far more often than software, because nothing checks it until `vlog`/`verilator` runs. Never skip a step because "it's a small change." Applies to `odve/comp/agents/` and to shared framework changes under `odve/script/` or `odve/comp/common/` (verify against a real agent, e.g. `apb`).
+
+**Before `git commit`** (any commit touching `.sv`/`.f`/`Makefile`/regress scripts):
+1. Questa: analyze the changed layer(s) — `make atb` / `make adut` / `make auvm`, or `make auvm adut atb`. Fix every nonzero `Errors:` count.
+2. Questa: `make all run TESTNAME=<a test from vrf/tb/tests>` — `make all` alone never elaborates; the `vsim` run does.
+3. Verilator: `make lint VERILATOR=1` until 0 errors, then `make all VERILATOR=1` — for any agent that supports it (see §0). This is the step most likely to surface a real defect, since Verilator is the stricter of the two; lint gets you the verdict in seconds, `all` proves it.
+
+**Before `git push`**:
+4. `./regress.py submit` (Questa) **and** `./regress.py submit -ropts="VERILATOR=1"` (Verilator). Both must be clean. Fix and re-run the **full** list on both before pushing; never push on a partial regression or on one simulator's result alone.
+
+If a simulator genuinely cannot run in the current environment (see §1), do not silently skip it — run what you can, and tell the user which simulator went unverified and why, so they can run it where it works before merging.
+
+If asked to commit/push and you haven't just run this sequence in the current conversation, run it first — don't rely on a compile from before the latest edits.
+
+## After running
+
+Summarize **per simulator**: what you ran (compile-only vs. specific test vs. regression) and the pass/fail result from the log. If something failed, quote the specific `%Error:` / `Errors: N` / `UVM_ERROR` lines rather than saying "it failed." If a simulator couldn't run at all, say so explicitly instead of reporting success or quietly omitting it.

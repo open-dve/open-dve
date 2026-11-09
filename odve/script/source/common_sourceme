@@ -1,1 +1,57 @@
-#!/bin/csh
+#!/bin/bash
+export ODVE_UVM=${ODVE}/uvm/uvm-1.1d/
+#export ODVE_UVM=${ODVE}/uvm/1800.2-2020-2.0/
+
+# SVUnit, vendored the same way UVM is above. Used by `make ut` in ut/
+# folders (script/common/ut.mk: *_unit_test.sv + a svunit.f filelist) -
+# not by the UVM regressions, which never reference it.
+export ODVE_SVUNIT=${ODVE}/svunit/svunit-3.38.1/
+export SVUNIT_INSTALL=${ODVE_SVUNIT%/}   # runSVUnit/buildSVUnit read it; `make ut` in any ut/ folder (script/common/ut.mk)
+export PATH="${SVUNIT_INSTALL}/bin:${PATH}"
+# Questa/ModelSim root: the only source is `vsim` found on PATH (resolved
+# through symlinks, so a link in ~/bin works too); empty if Questa isn't
+# installed. Nothing here or in common.mk knows where ModelSim lives - every
+# path is relative to MS_HOME. MS_GCC_PATH is the gcc ModelSim ships, used by
+# common.mk to build the UVM DPI library as a 32-bit object to match the
+# 32-bit Starter Edition.
+# The install root is recognised by its modelsim.ini, walking up from the
+# resolved vsim (bin/vsim is itself a link to the ../vco launcher, and on
+# Windows vsim.exe sits in win32aloem/), so no assumption about the layout.
+_vsim=$(command -v vsim 2>/dev/null)
+export MS_HOME=
+if [ -n "$_vsim" ]; then
+    _dir=$(dirname "$(readlink -f "$_vsim")")
+    for _i in 1 2 3; do
+        [ -f "$_dir/modelsim.ini" ] && { export MS_HOME=$_dir; break; }
+        _dir=$(dirname "$_dir")
+    done
+    [ -n "$MS_HOME" ] || echo "common_sourceme: vsim found at $_vsim but no modelsim.ini above it - MS_HOME left empty" >&2
+    unset _dir _i
+fi
+case "$(uname -s)" in
+    Linux*)
+        # gcc-<ver>-linux: i686 toolchain. Deliberately NOT put on PATH - it
+        # would shadow the host g++ that Verilator's C++ build relies on.
+        export MS_GCC_PATH="$(ls -d "${MS_HOME}"/gcc-*-linux 2>/dev/null | head -1)"
+        ;;
+    *)
+        export MS_GCC_PATH="${MS_HOME}/gcc-4.2.1-mingw32vc12"
+        export PATH="${MS_GCC_PATH}/bin:${PATH}"
+        ;;
+esac
+unset _vsim
+
+##
+# Verilator: defaults to the container-wrapped install vendored in
+# script/verilator-docker/ (docker, podman or apptainer on PATH). A native
+# install made by `script/verilator-docker/setup.sh --native` leaves its
+# paths in native.env there and is used when nothing else is set. Set
+# VERILATOR_ROOT yourself beforehand (e.g. your own native/Cygwin build)
+# to override both.
+#export VERILATOR_ROOT=/home/viktor/verilator/verilator
+#export PATH="/cygdrive/c/cygwin64/bin:$PATH"
+if [ -z "${VERILATOR_ROOT:-}" ] && [ -r "${ODVE}/script/verilator-docker/native.env" ]; then
+    source "${ODVE}/script/verilator-docker/native.env"
+fi
+export VERILATOR_ROOT="${VERILATOR_ROOT:-${ODVE}/script/verilator-docker}"
+export PATH="$VERILATOR_ROOT/bin:$PATH"
