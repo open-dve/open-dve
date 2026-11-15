@@ -44,6 +44,17 @@ Every range is exact and unbiased: values are built from 16-bit draws by
 integer arithmetic, and a draw from the incomplete top block of the word is
 drawn again.
 
+## `$urandom` instead: `URANDOM=1`
+
+For a comparison with the simulator's own generator, `make ... URANDOM=1`
+(`-ropts="URANDOM=1"` in a regression) compiles the testbench with
+`+define+ODVE_USE_URANDOM` (`script/common/run.mk`). Code that supports it
+keeps a `$urandom` branch under `` `ifdef ODVE_USE_URANDOM `` with each line
+waived (`// odve_rand: ok`) - today `odve_apb_item::user_randomize()`. Those
+values follow `-sv_seed`/`+verilator+seed+` and differ between simulators for
+the same `SEED`, so a failure found that way may not reproduce on the other
+simulator. The default (no define) is `odve_rand`.
+
 ## The seed
 
 odve's `run.mk` passes the make `SEED` (random per run unless `SEED=<n>` is
