@@ -4,6 +4,8 @@ odve/script/regress/__pycache__/*
 odve/script/verilator-docker/native.env
 # unpacked by setup.sh --portable; the .tar.xz next to it is the tracked artefact
 odve/script/verilator-docker/prebuilt/*/
+# built by script/verilator-portable/build.sh (hundreds of MB): distributed as a GitHub release asset
+odve/script/verilator-portable/bundle/
 odve/comp/agents/*/vrf/work/*/*__run/*
 odve/comp/agents/*/vrf/work/*/build/*
 odve/comp/agents/*/vrf/work/*/obj_dir/*

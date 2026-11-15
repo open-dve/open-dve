@@ -16,6 +16,9 @@
 #   ./setup.sh --portable          no container, no download: unpack the prebuilt
 #                                  Verilator vendored in prebuilt/ for this OS/arch
 #   ./setup.sh --pack-portable     maintainers: rebuild prebuilt/ from a --native install
+#   ./setup.sh --bundle [FILE|URL] no container, no network, no host compiler: install the
+#                                  full bundle (Verilator + g++ + make + perl) made by
+#                                  ../verilator-portable/build.sh; no argument = the release URL
 #
 # Exit codes: 0 ok, 1 environment not usable, 2 bad usage.
 set -euo pipefail
@@ -49,6 +52,7 @@ while [ $# -gt 0 ]; do
         --native)         MODE=native ;;
         --portable)       MODE=portable ;;
         --pack-portable)  MODE=pack ;;
+        --bundle)         shift; exec "$SCRIPT_DIR/../verilator-portable/install.sh" --odve "$(cd "$SCRIPT_DIR/../.." && pwd -P)" "${1:---release}" ;;
         --install-engine) INSTALL_ENGINE=1 ;;
         --engine)         ENGINE_CHOICE="${2:-}"; shift
                           case "$ENGINE_CHOICE" in
@@ -59,7 +63,7 @@ while [ $# -gt 0 ]; do
                           [ -n "$LOAD_FILE" ] || { err "--load needs a file"; exit 2; } ;;
         --image)          IMAGE="${2:-}"; shift
                           [ -n "$IMAGE" ] || { err "--image needs a value"; exit 2; } ;;
-        -h|--help)        sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        -h|--help)        sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *)                err "unknown option: $1 (try --help)"; exit 2 ;;
     esac
     shift

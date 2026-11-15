@@ -1,0 +1,13 @@
+# Pins of the portable Verilator bundle (sourced by build.sh / install.sh, parsed by release.py).
+# KEY=value, ${KEY} expands. Bump VERILATOR_VER, run build.sh, then release.py --upload.
+VERILATOR_VER=5.054
+# glibc the compiler links against: models built with the bundle run on any host with glibc >= this
+SYSROOT_VER=2.17
+# conda-forge packages that make up the bundle (versions resolved at build time, listed in BUNDLE.txt)
+CONDA_PKGS="verilator=${VERILATOR_VER} cxx-compiler make sysroot_linux-64=${SYSROOT_VER}"
+BUNDLE_ARCH=linux-x86_64
+BUNDLE_NAME=odve-verilator-${VERILATOR_VER}-${BUNDLE_ARCH}
+BUNDLE_ASSET=${BUNDLE_NAME}.tar.gz
+RELEASE_REPO=open-dve/open-dve
+RELEASE_TAG=verilator-${VERILATOR_VER}
+RELEASE_URL=https://github.com/${RELEASE_REPO}/releases/download/${RELEASE_TAG}/${BUNDLE_ASSET}
