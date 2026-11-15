@@ -23,7 +23,7 @@ BUILD_OPTS = \
 	-j $(NPROC) \
 	-o $(BIN) \
 	--top-module $(TOP) \
-	$(COV_DEFS) $(CCOV_BUILD_OPTS)
+	$(COV_DEFS) $(SIM_DEFS) $(CCOV_BUILD_OPTS)
 
 # UVM's DPI shim (regex/cmdline/HDL-backdoor); linked in directly since
 # Verilator has no simulator-native equivalent to preload like Questa's
@@ -61,7 +61,7 @@ LINT_OPTS = \
 	--timing \
 	-Wno-fatal \
 	--top-module $(TOP) \
-	$(COV_DEFS)
+	$(COV_DEFS) $(SIM_DEFS)
 
 # Parse and elaborate only, no C++: a syntax or type error surfaces in seconds
 # instead of after the multi-minute build. Same warning policy as `all`, so a

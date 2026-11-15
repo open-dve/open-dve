@@ -247,7 +247,7 @@ adut :
 atb : 
 	cd $(COMP_DIR) ;\
 	vlog -reportprogress 300 -work tb -sv $(CCOV_VLOG_OPTS) \
-	$(COV_DEFS) \
+	$(COV_DEFS) $(SIM_DEFS) \
 	-f $(FL_TB) \
 	-L dut -L uvm
 

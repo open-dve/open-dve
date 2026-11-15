@@ -32,6 +32,20 @@
 
 TIMEOUT ?= 180
 
+#   make all run URANDOM=1   # build with +define+ODVE_USE_URANDOM
+#
+# Default (URANDOM unset): stimulus draws from odve_rand streams, so a seed
+# gives the same values on every simulator and a failure found on one
+# reproduces on the other. URANDOM=1 compiles the TB with ODVE_USE_URANDOM,
+# where code that supports it (apb's item today) uses the simulator's own
+# $urandom instead: its values follow -sv_seed / +verilator+seed+ and differ
+# between simulators for the same SEED. It is a compile-time switch - pass it
+# to the build and the runs alike (-ropts="URANDOM=1" does both).
+SIM_DEFS =
+ifeq ($(URANDOM),1)
+    SIM_DEFS += +define+ODVE_USE_URANDOM
+endif
+
 # 1..2^31-2: what Verilator accepts (0 would mean "pick one"), and Questa
 # takes any 32-bit value. An environment or command-line SEED counts as given.
 ifeq ($(origin SEED),undefined)

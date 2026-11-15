@@ -74,7 +74,7 @@ Log     : .../work/run/apb_read/run.log
 ### Per-agent structure (the scaffold's layout; `apb` is the complete reference)
 
 - `intf/` — the SystemVerilog interface (`odve_<proto>_if.sv`): signals as plain `logic` inside, `clk`/`rst_n` as ports; the DUT is wired to its members from `top`.
-- `src/item/` — the sequence item + `odve_<proto>_item_pkg.sv`. No `rand`/constraints: values come from `user_randomize()` (plain `$urandom`), reached through `` `odve_rand(item) ``.
+- `src/item/` — the sequence item + `odve_<proto>_item_pkg.sv`. No `rand`/constraints: values come from `user_randomize()` drawing from an `odve_rand` stream (the sequence's, spawned per item), reached through `` `odve_rand(item) ``. apb keeps a `$urandom` branch under `` `ifdef ODVE_USE_URANDOM `` (`make ... URANDOM=1`, `-ropts="URANDOM=1"`), which gives different stimulus per simulator for the same seed.
 - `src/agent/` — `odve_<proto>_cfg.sv`, `odve_<proto>_sqr.sv`, `odve_<proto>_agent.sv`, `odve_<proto>_agent_pkg.sv`, with `mon/`, `mst/`, `slv/` for the monitor and the master/slave drivers. `cfg.role` selects master or slave; a slave is either autonomous (memory in its driver) or reactive (a slave sequencer with a request fifo and a responding sequence that owns the memory) — see `apb` (`+apb_slave=dut|mem|seq`). The agent package is also where the agent's **covergroup** lives (`` `ifdef ODVE_COV_NATIVE `` block at package scope, sampled by the monitor with `` `odve_cov_sample ``).
 - `seq/` — sequences on the item plus `odve_<proto>_seq_lib_pkg.sv`.
 - `list/` — compile filelists: `agent.f` (interface + item + agent packages, with `+incdir`s), `item.f`, `seq.f`.

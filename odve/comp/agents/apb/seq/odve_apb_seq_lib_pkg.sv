@@ -4,6 +4,7 @@ package odve_apb_seq_lib_pkg;
     `include "uvm_macros.svh"
     `include "odve_macro.sv"
     import uvm_pkg::*;
+    import odve_rand_pkg::*;
     import odve_apb_item_pkg::*;
     import odve_apb_agent_pkg::*;    // the slave sequencer type, for the responding sequence
 
