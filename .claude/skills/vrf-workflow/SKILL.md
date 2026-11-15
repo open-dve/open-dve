@@ -11,7 +11,7 @@ This repo's verification agents are UVM environments where **compilation is file
 
 ## 0. Find the right agent and work folder
 
-Each agent lives at `odve/comp/agents/<agent>/` (`apb` is the most complete and currently the only one with a full `vrf/` UVM environment — check before assuming another agent like `ahb`/`jtag`/`spi`/`uart` has one). Its standalone verification environment is `odve/comp/agents/<agent>/vrf/`, and the build/run/regress workspace is `odve/comp/agents/<agent>/vrf/work/<variant>/`, where `<variant>` is one of:
+Each agent lives at `odve/comp/agents/<agent>/` (`apb` is the reference; `i2c`, `smbus`, `pmbus`, `i3c`, `spi`, `qspi`, `jtag`, `uart`, `mdio`, `i2s`, `spmi`, `rffe` have the same full `vrf/` UVM environment; `axi`/`ahb` do not — check before assuming). Its standalone verification environment is `odve/comp/agents/<agent>/vrf/`, and the build/run/regress workspace is `odve/comp/agents/<agent>/vrf/work/<variant>/`, where `<variant>` is one of:
 
 - `run/` — everyday compile + simulate loop while iterating on code.
 - `check/` or `submit/` — full regression, run before pushing.
@@ -27,7 +27,7 @@ Verilator support is per-agent, not automatic. An agent has it only if **both** 
 - `vrf/work/common/Makefile.veri` — the Verilator build rules, and
 - `vrf/list/fl.f` — the single flattened filelist Verilator consumes (Questa uses the separate `fl_uvm.f`/`fl_dut.f`/`fl_tb.f`).
 
-Today that's `apb` (full UVM) and `uart` (non-UVM). If an agent lacks them, say so plainly rather than reporting a Verilator pass that never ran — and don't hand-roll a one-off `verilator` invocation as a substitute, since it won't match what the Makefile does.
+Today that's `apb` and the twelve serial agents (`i2c`, `smbus`, `pmbus`, `i3c`, `spi`, `qspi`, `jtag`, `uart`, `mdio`, `i2s`, `spmi`, `rffe`). If an agent lacks them, say so plainly rather than reporting a Verilator pass that never ran — and don't hand-roll a one-off `verilator` invocation as a substitute, since it won't match what the Makefile does.
 
 ## 1. Source the environment (once per shell)
 

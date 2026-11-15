@@ -1,0 +1,3 @@
+-f ${ODVE}/comp/agents/smbus/vrf/list/fl_uvm.f
+-f ${ODVE}/comp/agents/smbus/vrf/list/fl_dut.f
+-f ${ODVE}/comp/agents/smbus/vrf/list/fl_tb.f

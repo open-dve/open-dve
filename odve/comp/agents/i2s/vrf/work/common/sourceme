@@ -1,0 +1,5 @@
+#!/bin/bash
+export ODVE=$(readlink -f "../../../../../../")
+export PROJ=$(readlink -f "../../../../../../comp/agents/i2s")
+export ODVE_I2S=$PROJ
+source $ODVE/script/source/common_sourceme

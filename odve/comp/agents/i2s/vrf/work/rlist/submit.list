@@ -1,0 +1,44 @@
+# i2s pre-push regression. Port A = agent TX -> DUT RX, port B = DUT TX -> agent RX
+# unless +i2s_slave=agent (agent TX -> agent RX on port A). +i2s_a_clk / +i2s_b_clk
+# pick each port's clock controller (tx = the transmitter, rx = the receiver).
+# formats and word lengths, agents as clock controllers (default)
+i2s_std_w16       : TESTNAME=i2s_std_test RUN_OPTS+='+i2s_wlen=16 +i2s_slen=16'
+i2s_std_w16s32    : TESTNAME=i2s_std_test
+i2s_std_w24       : TESTNAME=i2s_std_test RUN_OPTS+='+i2s_wlen=24 +i2s_slen=32'
+i2s_std_w32       : TESTNAME=i2s_std_test RUN_OPTS+='+i2s_wlen=32 +i2s_slen=32'
+i2s_lj            : TESTNAME=i2s_lj_test
+i2s_lj_w16        : TESTNAME=i2s_lj_test RUN_OPTS+='+i2s_wlen=16 +i2s_slen=16'
+i2s_rj            : TESTNAME=i2s_rj_test
+i2s_rj_w16s32     : TESTNAME=i2s_rj_test RUN_OPTS+='+i2s_wlen=16'
+i2s_rj_w32        : TESTNAME=i2s_rj_test RUN_OPTS+='+i2s_wlen=32'
+i2s_tdm4          : TESTNAME=i2s_tdm_test
+i2s_tdm8_w16      : TESTNAME=i2s_tdm_test RUN_OPTS+='+i2s_slots=8 +i2s_wlen=16 +i2s_slen=16'
+i2s_tdm2_w32      : TESTNAME=i2s_tdm_test RUN_OPTS+='+i2s_slots=2 +i2s_wlen=32'
+i2s_mono          : TESTNAME=i2s_mono_test
+i2s_mono_lj       : TESTNAME=i2s_mono_test RUN_OPTS+='+i2s_fmt=lj +i2s_wlen=24'
+i2s_corner_w16    : TESTNAME=i2s_corner_test
+i2s_corner_w24    : TESTNAME=i2s_corner_test RUN_OPTS+='+i2s_fmt=rj +i2s_wlen=24'
+i2s_corner_w32    : TESTNAME=i2s_corner_test RUN_OPTS+='+i2s_fmt=tdm +i2s_slots=4 +i2s_wlen=32'
+i2s_gap           : TESTNAME=i2s_gap_test
+i2s_gen           : TESTNAME=i2s_gen_test
+# agents as clock targets: DUT receiver controls port A, agent receiver controls port B
+i2s_tgt_std       : TESTNAME=i2s_std_test RUN_OPTS+='+i2s_a_clk=rx +i2s_b_clk=rx +i2s_wlen=24'
+i2s_tgt_lj        : TESTNAME=i2s_lj_test RUN_OPTS+='+i2s_a_clk=rx +i2s_b_clk=rx +i2s_wlen=32'
+i2s_tgt_rj        : TESTNAME=i2s_rj_test RUN_OPTS+='+i2s_a_clk=rx +i2s_b_clk=rx +i2s_wlen=16 +i2s_slen=16'
+i2s_tgt_tdm8      : TESTNAME=i2s_tdm_test RUN_OPTS+='+i2s_a_clk=rx +i2s_b_clk=rx +i2s_slots=8'
+i2s_tgt_gap       : TESTNAME=i2s_gap_test RUN_OPTS+='+i2s_a_clk=rx +i2s_b_clk=rx'
+i2s_tgt_gen       : TESTNAME=i2s_gen_test RUN_OPTS+='+i2s_a_clk=rx +i2s_b_clk=rx +i2s_fmt=lj'
+# mixed: DUT controls both ports / agents control both ports
+i2s_dut_clk       : TESTNAME=i2s_std_test RUN_OPTS+='+i2s_a_clk=rx +i2s_b_clk=tx'
+i2s_agt_clk       : TESTNAME=i2s_tdm_test RUN_OPTS+='+i2s_a_clk=tx +i2s_b_clk=rx'
+# agent against agent: transmitter -> receiver agent on port A
+i2s_loop_txc      : TESTNAME=i2s_std_test RUN_OPTS+='+i2s_slave=agent +i2s_wlen=32'
+i2s_loop_rxc      : TESTNAME=i2s_std_test RUN_OPTS+='+i2s_slave=agent +i2s_a_clk=rx'
+i2s_loop_rxc_lj   : TESTNAME=i2s_lj_test RUN_OPTS+='+i2s_slave=agent +i2s_a_clk=rx'
+i2s_loop_rxc_tdm  : TESTNAME=i2s_tdm_test RUN_OPTS+='+i2s_slave=agent +i2s_a_clk=rx +i2s_slots=8 +i2s_wlen=16 +i2s_slen=16'
+# negative: WS errors injected by the port A controller, detected by the monitor
+i2s_ws_glitch     : TESTNAME=i2s_ws_err_test RUN_OPTS+='+i2s_inj=glitch'
+i2s_ws_shift      : TESTNAME=i2s_ws_err_test RUN_OPTS+='+i2s_inj=shift'
+i2s_ws_glitch_tdm : TESTNAME=i2s_ws_err_test RUN_OPTS+='+i2s_inj=glitch +i2s_fmt=tdm +i2s_slots=4'
+i2s_ws_shift_lj   : TESTNAME=i2s_ws_err_test RUN_OPTS+='+i2s_inj=shift +i2s_fmt=lj +i2s_wlen=24'
+i2s_timing_err    : TESTNAME=i2s_timing_err_test

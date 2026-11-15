@@ -1,0 +1,13 @@
+pmbus_basic       : TESTNAME=pmbus_basic_test
+pmbus_page        : TESTNAME=pmbus_page_test
+pmbus_fault       : TESTNAME=pmbus_fault_test
+pmbus_pec         : TESTNAME=pmbus_pec_test
+pmbus_rand        : TESTNAME=pmbus_rand_test
+pmbus_basic_mem   : TESTNAME=pmbus_basic_test RUN_OPTS+=+pmbus_slave=mem
+pmbus_fault_mem   : TESTNAME=pmbus_fault_test RUN_OPTS+=+pmbus_slave=mem
+pmbus_rand_mem    : TESTNAME=pmbus_rand_test  RUN_OPTS+=+pmbus_slave=mem
+pmbus_basic_seq   : TESTNAME=pmbus_basic_test RUN_OPTS+=+pmbus_slave=seq
+pmbus_page_seq    : TESTNAME=pmbus_page_test  RUN_OPTS+=+pmbus_slave=seq
+pmbus_fault_seq   : TESTNAME=pmbus_fault_test RUN_OPTS+=+pmbus_slave=seq
+pmbus_pec_seq     : TESTNAME=pmbus_pec_test   RUN_OPTS+=+pmbus_slave=seq
+pmbus_rand_seq    : TESTNAME=pmbus_rand_test  RUN_OPTS+=+pmbus_slave=seq

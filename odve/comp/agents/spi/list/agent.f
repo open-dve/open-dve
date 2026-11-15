@@ -1,0 +1,9 @@
++incdir+${ODVE}/comp/common/macro
++incdir+${ODVE}/comp/agents/spi/src/item
++incdir+${ODVE}/comp/agents/spi/src/agent
++incdir+${ODVE}/comp/agents/spi/src/agent/mon
++incdir+${ODVE}/comp/agents/spi/src/agent/mst
++incdir+${ODVE}/comp/agents/spi/src/agent/slv
+${ODVE}/comp/agents/spi/intf/odve_spi_if.sv
+${ODVE}/comp/agents/spi/src/item/odve_spi_item_pkg.sv
+${ODVE}/comp/agents/spi/src/agent/odve_spi_agent_pkg.sv

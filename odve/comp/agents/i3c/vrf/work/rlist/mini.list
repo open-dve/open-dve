@@ -1,0 +1,1 @@
+i3c_daa          : TESTNAME=daa_test     RUN_OPTS+=+i3c_target=both

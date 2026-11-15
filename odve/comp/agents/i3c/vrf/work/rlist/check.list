@@ -1,0 +1,14 @@
+i3c_daa          : TESTNAME=daa_test     RUN_OPTS+=+i3c_target=both
+i3c_daa_dut      : TESTNAME=daa_test
+i3c_priv         : TESTNAME=priv_test
+i3c_priv_mem     : TESTNAME=priv_test    RUN_OPTS+=+i3c_target=mem
+i3c_priv_seq     : TESTNAME=priv_test    RUN_OPTS+=+i3c_target=seq
+i3c_priv_both    : TESTNAME=priv_test    RUN_OPTS+=+i3c_target=both
+i3c_ccc          : TESTNAME=ccc_test     RUN_OPTS+=+i3c_target=both
+i3c_ccc_seq      : TESTNAME=ccc_test     RUN_OPTS+=+i3c_target=seq
+i3c_parity       : TESTNAME=parity_test
+i3c_parity_mem   : TESTNAME=parity_test  RUN_OPTS+=+i3c_target=mem
+i3c_ibi          : TESTNAME=ibi_test     RUN_OPTS+=+i3c_target=both
+i3c_ibi_dut      : TESTNAME=ibi_test
+i3c_setdasa      : TESTNAME=setdasa_test RUN_OPTS+=+i3c_target=both
+i3c_hotjoin      : TESTNAME=hotjoin_test RUN_OPTS+=+i3c_target=both

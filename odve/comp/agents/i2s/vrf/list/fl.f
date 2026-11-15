@@ -1,0 +1,3 @@
+-f ${ODVE}/comp/agents/i2s/vrf/list/fl_uvm.f
+-f ${ODVE}/comp/agents/i2s/vrf/list/fl_dut.f
+-f ${ODVE}/comp/agents/i2s/vrf/list/fl_tb.f

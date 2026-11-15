@@ -1,0 +1,9 @@
++incdir+${ODVE}/comp/common/macro
++incdir+${ODVE}/comp/agents/qspi/src/item
++incdir+${ODVE}/comp/agents/qspi/src/agent
++incdir+${ODVE}/comp/agents/qspi/src/agent/mon
++incdir+${ODVE}/comp/agents/qspi/src/agent/mst
++incdir+${ODVE}/comp/agents/qspi/src/agent/slv
+${ODVE}/comp/agents/qspi/intf/odve_qspi_if.sv
+${ODVE}/comp/agents/qspi/src/item/odve_qspi_item_pkg.sv
+${ODVE}/comp/agents/qspi/src/agent/odve_qspi_agent_pkg.sv

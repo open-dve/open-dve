@@ -1,0 +1,9 @@
++incdir+${ODVE}/comp/common/macro
++incdir+${ODVE}/comp/agents/i2c/src/item
++incdir+${ODVE}/comp/agents/i2c/src/agent
++incdir+${ODVE}/comp/agents/i2c/src/agent/mon
++incdir+${ODVE}/comp/agents/i2c/src/agent/mst
++incdir+${ODVE}/comp/agents/i2c/src/agent/slv
+${ODVE}/comp/agents/i2c/intf/odve_i2c_if.sv
+${ODVE}/comp/agents/i2c/src/item/odve_i2c_item_pkg.sv
+${ODVE}/comp/agents/i2c/src/agent/odve_i2c_agent_pkg.sv

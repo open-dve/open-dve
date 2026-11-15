@@ -1,0 +1,16 @@
+mdio_c22           : TESTNAME=c22_test
+mdio_c45           : TESTNAME=c45_test
+mdio_c45_rinc      : TESTNAME=c45_rinc_test
+mdio_addr_miss     : TESTNAME=addr_miss_test
+mdio_b2b           : TESTNAME=b2b_test
+mdio_short_pre     : TESTNAME=short_pre_test
+mdio_proto_err     : TESTNAME=proto_err_test
+mdio_rand          : TESTNAME=rand_test
+mdio_c22_mem       : TESTNAME=c22_test RUN_OPTS+=+mdio_slave=mem
+mdio_c45_rinc_seq  : TESTNAME=c45_rinc_test RUN_OPTS+=+mdio_slave=seq
+mdio_short_pre_mem : TESTNAME=short_pre_test RUN_OPTS+=+mdio_slave=mem
+mdio_proto_err_seq : TESTNAME=proto_err_test RUN_OPTS+=+mdio_slave=seq
+mdio_rand_mem      : TESTNAME=rand_test RUN_OPTS+=+mdio_slave=mem
+mdio_rand_seq      : TESTNAME=rand_test RUN_OPTS+=+mdio_slave=seq
+mdio_rand_multi    : TESTNAME=rand_test RUN_OPTS+=+mdio_slave=multi
+mdio_miss_multi    : TESTNAME=addr_miss_test RUN_OPTS+=+mdio_slave=multi

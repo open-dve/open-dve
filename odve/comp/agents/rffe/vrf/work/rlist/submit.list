@@ -1,0 +1,17 @@
+rffe_reg        : TESTNAME=reg_test
+rffe_ext        : TESTNAME=ext_test
+rffe_extl       : TESTNAME=extl_test
+rffe_bound      : TESTNAME=boundary_test
+rffe_bcast      : TESTNAME=bcast_test
+rffe_par        : TESTNAME=par_err_test
+rffe_nrf        : TESTNAME=nrf_test
+rffe_hs         : TESTNAME=half_speed_test
+rffe_rand       : TESTNAME=rand_test
+rffe_rand_mem   : TESTNAME=rand_test RUN_OPTS+=+rffe_slave=mem
+rffe_rand_seq   : TESTNAME=rand_test RUN_OPTS+=+rffe_slave=seq
+rffe_bound_mem  : TESTNAME=boundary_test RUN_OPTS+=+rffe_slave=mem
+rffe_bcast_seq  : TESTNAME=bcast_test RUN_OPTS+=+rffe_slave=seq
+rffe_par_mem    : TESTNAME=par_err_test RUN_OPTS+=+rffe_slave=mem
+rffe_par_seq    : TESTNAME=par_err_test RUN_OPTS+=+rffe_slave=seq
+rffe_nrf_mem    : TESTNAME=nrf_test RUN_OPTS+=+rffe_slave=mem
+rffe_hs_seq     : TESTNAME=half_speed_test RUN_OPTS+=+rffe_slave=seq

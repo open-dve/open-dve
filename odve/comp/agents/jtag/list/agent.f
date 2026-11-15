@@ -1,0 +1,9 @@
++incdir+${ODVE}/comp/common/macro
++incdir+${ODVE}/comp/agents/jtag/src/item
++incdir+${ODVE}/comp/agents/jtag/src/agent
++incdir+${ODVE}/comp/agents/jtag/src/agent/mon
++incdir+${ODVE}/comp/agents/jtag/src/agent/mst
++incdir+${ODVE}/comp/agents/jtag/src/agent/slv
+${ODVE}/comp/agents/jtag/intf/odve_jtag_if.sv
+${ODVE}/comp/agents/jtag/src/item/odve_jtag_item_pkg.sv
+${ODVE}/comp/agents/jtag/src/agent/odve_jtag_agent_pkg.sv

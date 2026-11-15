@@ -1,0 +1,2 @@
+i2c_rand     : TESTNAME=i2c_rand_test
+i2c_rand_seq : TESTNAME=i2c_rand_test RUN_OPTS+=+i2c_slave=seq

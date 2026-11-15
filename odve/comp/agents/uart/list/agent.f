@@ -1,6 +1,9 @@
-+incdir+${ODVE}/comp/agents/uart/intf
-+incdir+${ODVE}/comp/agents/uart/src
-+incdir+${ODVE}/comp/agents/uart/item
-
++incdir+${ODVE}/comp/common/macro
++incdir+${ODVE}/comp/agents/uart/src/item
++incdir+${ODVE}/comp/agents/uart/src/agent
++incdir+${ODVE}/comp/agents/uart/src/agent/mon
++incdir+${ODVE}/comp/agents/uart/src/agent/mst
++incdir+${ODVE}/comp/agents/uart/src/agent/slv
 ${ODVE}/comp/agents/uart/intf/odve_uart_if.sv
-${ODVE}/comp/agents/uart/src/odve_uart_agent_pkg.sv
+${ODVE}/comp/agents/uart/src/item/odve_uart_item_pkg.sv
+${ODVE}/comp/agents/uart/src/agent/odve_uart_agent_pkg.sv

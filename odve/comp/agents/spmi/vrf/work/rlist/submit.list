@@ -1,0 +1,16 @@
+spmi_reg        : TESTNAME=reg_test
+spmi_ext        : TESTNAME=ext_test
+spmi_extl       : TESTNAME=extl_test
+spmi_bound      : TESTNAME=boundary_test
+spmi_pm         : TESTNAME=pm_test
+spmi_par        : TESTNAME=par_err_test
+spmi_nrf        : TESTNAME=nrf_test
+spmi_rand       : TESTNAME=rand_test
+spmi_rand_mem   : TESTNAME=rand_test RUN_OPTS+=+spmi_slave=mem
+spmi_rand_seq   : TESTNAME=rand_test RUN_OPTS+=+spmi_slave=seq
+spmi_bound_mem  : TESTNAME=boundary_test RUN_OPTS+=+spmi_slave=mem
+spmi_pm_mem     : TESTNAME=pm_test RUN_OPTS+=+spmi_slave=mem
+spmi_pm_seq     : TESTNAME=pm_test RUN_OPTS+=+spmi_slave=seq
+spmi_par_mem    : TESTNAME=par_err_test RUN_OPTS+=+spmi_slave=mem
+spmi_par_seq    : TESTNAME=par_err_test RUN_OPTS+=+spmi_slave=seq
+spmi_nrf_seq    : TESTNAME=nrf_test RUN_OPTS+=+spmi_slave=seq

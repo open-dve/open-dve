@@ -1,0 +1,5 @@
+#!/bin/bash
+export ODVE=$(readlink -f "../../../../../../")
+export PROJ=$(readlink -f "../../../../../../comp/agents/qspi")
+export ODVE_QSPI=$PROJ
+source $ODVE/script/source/common_sourceme

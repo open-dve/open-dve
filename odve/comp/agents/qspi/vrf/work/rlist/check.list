@@ -1,0 +1,14 @@
+qspi_id          : TESTNAME=id_test
+qspi_id_mem      : TESTNAME=id_test     RUN_OPTS+=+qspi_slave=mem
+qspi_read        : TESTNAME=read_test
+qspi_read_m3     : TESTNAME=read_test   RUN_OPTS+=+qspi_mode=3
+qspi_read_mem    : TESTNAME=read_test   RUN_OPTS+=+qspi_slave=mem
+qspi_read_seq_m3 : TESTNAME=read_test   RUN_OPTS+=+qspi_slave=seq RUN_OPTS+=+qspi_mode=3
+qspi_prog        : TESTNAME=prog_test
+qspi_prog_mem    : TESTNAME=prog_test   RUN_OPTS+=+qspi_slave=mem
+qspi_prog_seq    : TESTNAME=prog_test   RUN_OPTS+=+qspi_slave=seq
+qspi_busy        : TESTNAME=busy_test
+qspi_busy_seq    : TESTNAME=busy_test   RUN_OPTS+=+qspi_slave=seq
+qspi_rand        : TESTNAME=rand_test
+qspi_rand_mem_m3 : TESTNAME=rand_test   RUN_OPTS+=+qspi_slave=mem RUN_OPTS+=+qspi_mode=3
+qspi_err         : TESTNAME=err_test

@@ -1,0 +1,16 @@
+i2c_basic        : TESTNAME=i2c_basic_test
+i2c_addr10       : TESTNAME=i2c_addr10_test
+i2c_rand         : TESTNAME=i2c_rand_test
+i2c_nack         : TESTNAME=i2c_nack_test
+i2c_stretch      : TESTNAME=i2c_stretch_test
+i2c_gencall      : TESTNAME=i2c_gencall_test
+i2c_abort        : TESTNAME=i2c_abort_test
+i2c_basic_mem    : TESTNAME=i2c_basic_test   RUN_OPTS+=+i2c_slave=mem
+i2c_rand_mem     : TESTNAME=i2c_rand_test    RUN_OPTS+=+i2c_slave=mem
+i2c_nack_mem     : TESTNAME=i2c_nack_test    RUN_OPTS+=+i2c_slave=mem
+i2c_stretch_mem  : TESTNAME=i2c_stretch_test RUN_OPTS+=+i2c_slave=mem
+i2c_rand_seq     : TESTNAME=i2c_rand_test    RUN_OPTS+=+i2c_slave=seq
+i2c_addr10_seq   : TESTNAME=i2c_addr10_test  RUN_OPTS+=+i2c_slave=seq
+i2c_gencall_seq  : TESTNAME=i2c_gencall_test RUN_OPTS+=+i2c_slave=seq
+i2c_stretch_seq  : TESTNAME=i2c_stretch_test RUN_OPTS+=+i2c_slave=seq
+i2c_abort_seq    : TESTNAME=i2c_abort_test   RUN_OPTS+=+i2c_slave=seq

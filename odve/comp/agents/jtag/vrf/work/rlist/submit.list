@@ -1,0 +1,26 @@
+jtag_idcode       : TESTNAME=idcode_test
+jtag_idcode_mem   : TESTNAME=idcode_test RUN_OPTS+=+jtag_slave=mem
+jtag_idcode_seq   : TESTNAME=idcode_test RUN_OPTS+=+jtag_slave=seq
+jtag_idcode_chain : TESTNAME=idcode_test RUN_OPTS+=+jtag_slave=chain
+jtag_bypass       : TESTNAME=bypass_test
+jtag_bypass_chain : TESTNAME=bypass_test RUN_OPTS+=+jtag_slave=chain
+jtag_user         : TESTNAME=user_test
+jtag_user_mem     : TESTNAME=user_test RUN_OPTS+=+jtag_slave=mem
+jtag_user_seq     : TESTNAME=user_test RUN_OPTS+=+jtag_slave=seq
+jtag_len          : TESTNAME=len_test
+jtag_len_seq      : TESTNAME=len_test RUN_OPTS+=+jtag_slave=seq
+jtag_pause        : TESTNAME=pause_test
+jtag_pause_mem    : TESTNAME=pause_test RUN_OPTS+=+jtag_slave=mem
+jtag_reset        : TESTNAME=reset_test
+jtag_reset_seq    : TESTNAME=reset_test RUN_OPTS+=+jtag_slave=seq
+jtag_bsr          : TESTNAME=bsr_test
+jtag_bsr_mem      : TESTNAME=bsr_test RUN_OPTS+=+jtag_slave=mem
+jtag_goto         : TESTNAME=goto_test
+jtag_goto_mem     : TESTNAME=goto_test RUN_OPTS+=+jtag_slave=mem
+jtag_chain        : TESTNAME=chain_test RUN_OPTS+=+jtag_slave=chain
+jtag_rand         : TESTNAME=rand_test
+jtag_rand_mem     : TESTNAME=rand_test RUN_OPTS+=+jtag_slave=mem
+jtag_rand_seq     : TESTNAME=rand_test RUN_OPTS+=+jtag_slave=seq
+jtag_rand_chain   : TESTNAME=rand_test RUN_OPTS+=+jtag_slave=chain
+jtag_err_oe       : TESTNAME=err_test RUN_OPTS+=+jtag_slave=mem RUN_OPTS+=+jtag_err=oe
+jtag_err_ircap    : TESTNAME=err_test RUN_OPTS+=+jtag_slave=seq RUN_OPTS+=+jtag_err=ircap

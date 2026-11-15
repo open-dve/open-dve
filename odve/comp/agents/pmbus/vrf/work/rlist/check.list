@@ -1,0 +1,2 @@
+pmbus_rand     : TESTNAME=pmbus_rand_test
+pmbus_rand_seq : TESTNAME=pmbus_rand_test RUN_OPTS+=+pmbus_slave=seq

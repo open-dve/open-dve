@@ -1,0 +1,16 @@
+smbus_proto        : TESTNAME=smbus_proto_test
+smbus_rand         : TESTNAME=smbus_rand_test
+smbus_pec          : TESTNAME=smbus_pec_test
+smbus_alert        : TESTNAME=smbus_alert_test
+smbus_timeout      : TESTNAME=smbus_timeout_test
+smbus_err          : TESTNAME=smbus_err_test
+smbus_proto_mem    : TESTNAME=smbus_proto_test   RUN_OPTS+=+smbus_slave=mem
+smbus_rand_mem     : TESTNAME=smbus_rand_test    RUN_OPTS+=+smbus_slave=mem
+smbus_pec_mem      : TESTNAME=smbus_pec_test     RUN_OPTS+=+smbus_slave=mem
+smbus_timeout_mem  : TESTNAME=smbus_timeout_test RUN_OPTS+=+smbus_slave=mem
+smbus_err_mem      : TESTNAME=smbus_err_test     RUN_OPTS+=+smbus_slave=mem
+smbus_proto_seq    : TESTNAME=smbus_proto_test   RUN_OPTS+=+smbus_slave=seq
+smbus_rand_seq     : TESTNAME=smbus_rand_test    RUN_OPTS+=+smbus_slave=seq
+smbus_pec_seq      : TESTNAME=smbus_pec_test     RUN_OPTS+=+smbus_slave=seq
+smbus_alert_seq    : TESTNAME=smbus_alert_test   RUN_OPTS+=+smbus_slave=seq
+smbus_timeout_seq  : TESTNAME=smbus_timeout_test RUN_OPTS+=+smbus_slave=seq

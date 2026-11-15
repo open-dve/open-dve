@@ -1,0 +1,2 @@
+smbus_rand     : TESTNAME=smbus_rand_test
+smbus_rand_seq : TESTNAME=smbus_rand_test RUN_OPTS+=+smbus_slave=seq

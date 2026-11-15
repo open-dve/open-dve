@@ -1,0 +1,1 @@
+i2s_std_w24 : TESTNAME=i2s_std_test RUN_OPTS+='+i2s_wlen=24 +i2s_slen=32'

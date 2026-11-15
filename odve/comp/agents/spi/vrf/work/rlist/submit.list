@@ -1,0 +1,13 @@
+spi_rw          : TESTNAME=rw_test
+spi_rw_mem      : TESTNAME=rw_test     RUN_OPTS+=+spi_slave=mem
+spi_rw_seq      : TESTNAME=rw_test     RUN_OPTS+=+spi_slave=seq
+spi_mode        : TESTNAME=mode_test
+spi_mode_mem    : TESTNAME=mode_test   RUN_OPTS+=+spi_slave=mem
+spi_mode_seq    : TESTNAME=mode_test   RUN_OPTS+=+spi_slave=seq
+spi_burst       : TESTNAME=burst_test
+spi_burst_seq   : TESTNAME=burst_test  RUN_OPTS+=+spi_slave=seq
+spi_b2b         : TESTNAME=b2b_test
+spi_b2b_mem     : TESTNAME=b2b_test    RUN_OPTS+=+spi_slave=mem
+spi_abort       : TESTNAME=abort_test
+spi_abort_mem   : TESTNAME=abort_test  RUN_OPTS+=+spi_slave=mem
+spi_err         : TESTNAME=err_test

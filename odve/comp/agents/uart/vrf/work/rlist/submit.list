@@ -1,0 +1,15 @@
+uart_basic        : TESTNAME=basic_test
+uart_basic_mem    : TESTNAME=basic_test   RUN_OPTS+=+uart_slave=mem
+uart_basic_seq    : TESTNAME=basic_test   RUN_OPTS+=+uart_slave=seq
+uart_format       : TESTNAME=format_test
+uart_format_mem   : TESTNAME=format_test  RUN_OPTS+=+uart_slave=mem
+uart_b2b          : TESTNAME=b2b_test
+uart_b2b_seq      : TESTNAME=b2b_test     RUN_OPTS+=+uart_slave=seq
+uart_baud         : TESTNAME=baud_test
+uart_baud_mem     : TESTNAME=baud_test    RUN_OPTS+=+uart_slave=mem
+uart_err          : TESTNAME=err_test
+uart_err_mem      : TESTNAME=err_test     RUN_OPTS+=+uart_slave=mem
+uart_overrun      : TESTNAME=overrun_test
+uart_flow         : TESTNAME=flow_test
+uart_flow_mem     : TESTNAME=flow_test    RUN_OPTS+=+uart_slave=mem
+uart_flow_seq     : TESTNAME=flow_test    RUN_OPTS+=+uart_slave=seq

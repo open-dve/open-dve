@@ -1,0 +1,9 @@
++incdir+${ODVE}/comp/common/macro
++incdir+${ODVE}/comp/agents/mdio/src/item
++incdir+${ODVE}/comp/agents/mdio/src/agent
++incdir+${ODVE}/comp/agents/mdio/src/agent/mon
++incdir+${ODVE}/comp/agents/mdio/src/agent/mst
++incdir+${ODVE}/comp/agents/mdio/src/agent/slv
+${ODVE}/comp/agents/mdio/intf/odve_mdio_if.sv
+${ODVE}/comp/agents/mdio/src/item/odve_mdio_item_pkg.sv
+${ODVE}/comp/agents/mdio/src/agent/odve_mdio_agent_pkg.sv

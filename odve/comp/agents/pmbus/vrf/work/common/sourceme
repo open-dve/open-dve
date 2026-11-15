@@ -1,0 +1,5 @@
+#!/bin/bash
+export ODVE=$(readlink -f "../../../../../../")
+export PROJ=$(readlink -f "../../../../../../comp/agents/pmbus")
+export ODVE_PMBUS=$PROJ
+source $ODVE/script/source/common_sourceme
